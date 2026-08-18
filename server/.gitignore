@@ -1,8 +1,0 @@
-config.toml
-target
-secret
-node_modules
-flamegraph*.svg
-test/node_modules
-test/perf/stats
-test

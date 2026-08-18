@@ -1,0 +1,32 @@
+{
+  "name": "osrs-mcp-server-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=packages/shared && npm run build --workspaces --if-present --workspace=apps/server --workspace=apps/client",
+    "dev": "npm run dev --workspace=apps/server",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "npm run lint:fix --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\" --ignore-path .gitignore",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace=apps/client"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "eslint": "^10.8.1",
+    "@eslint/js": "^10.0.1",
+    "typescript-eslint": "^8.67.0",
+    "prettier": "^3.9.6"
+  }
+}

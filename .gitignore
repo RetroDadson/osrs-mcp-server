@@ -1,2 +1,28 @@
 .#*
 .env
+.env.local
+
+# Node / npm
+node_modules/
+npm-debug.log*
+
+# Build output
+dist/
+build/
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+.vitest-reports/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+
+# Postgres data volume (docker-compose)
+pg-data/
+
+# Backup logs
+backup/backup.log
+backup/pg_backups/
