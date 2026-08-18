@@ -1,8 +1,15 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { tokenHash } from '../src/auth/index.js';
-import { upsertHiscoreActivity, upsertItemMetadata } from '../src/db/events.js';
+import {
+  recordClueCompletion,
+  recordDeath,
+  recordSlayerTaskCompletion,
+  upsertHiscoreActivity,
+  upsertItemMetadata,
+} from '../src/db/events.js';
 import { createGroup, getGroupIdByToken, getMemberId } from '../src/db/groups.js';
 import { buildTestApp, closeTestApp, TEST_SECRET, type TestApp } from './helpers/test-app.js';
 import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
@@ -55,6 +62,40 @@ describe('MCP server (real client over real HTTP)', () => {
       .execute();
     await upsertHiscoreActivity(testDb.db, aliceId!, 'Zulrah', 250);
     await upsertHiscoreActivity(testDb.db, aliceId!, 'Clue Scrolls (easy)', 10);
+
+    await testDb.db
+      .updateTable('members')
+      .set({
+        coordinates: [3200, 3200, 0],
+        quests: Buffer.from([0, 1, 2]),
+        slayer_task: {
+          task: 'Gargoyles',
+          master: 'Duradel',
+          amount_remaining: 5,
+          initial_amount: 10,
+          points: 2,
+          task_streak: 1,
+          wilderness_streak: 0,
+        },
+        combat_achievements: [1, 2, 3, 4, 5, 6],
+        // farming_patches is a JSON ARRAY column - pg's default serialization treats plain JS
+        // arrays as Postgres array literals, not JSON, so this needs an explicit jsonb cast
+        // (the batcher's own write path already does this correctly via sql.ts's jsonbParam()).
+        farming_patches: sql`${JSON.stringify([{ name: 'Herb patch (Falador)', raw_value: 0, state: 'empty' }])}::jsonb`,
+        collection_log: [4151],
+        diary_vars: new Array(62).fill(1),
+      })
+      .where('member_id', '=', aliceId!)
+      .execute();
+
+    await recordSlayerTaskCompletion(testDb.db, aliceId!, {
+      task: 'Cows',
+      master: null,
+      amountCompleted: 50,
+      outcome: 'completed',
+    });
+    await recordClueCompletion(testDb.db, aliceId!, 'easy');
+    await recordDeath(testDb.db, aliceId!, { worldX: 3200, worldY: 3200, plane: 0, killer: 'Gargoyle' });
 
     testApp = await buildTestApp(testDb);
     await testApp.app.listen({ port: 0, host: '127.0.0.1' });
@@ -159,6 +200,93 @@ describe('MCP server (real client over real HTTP)', () => {
     const client = await connectClient(port);
     const result = await client.callTool({ name: 'get_skills', arguments: { member_name: 'nobody' } });
     expect(result.isError).toBe(true);
+    await client.close();
+  });
+
+  it('get_member_status returns a combined status snapshot', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_member_status', arguments: { member_name: 'alice' } });
+    const status = firstTextContent(result as never) as { name: string; coordinates: number[]; slayer_task: { task: string } };
+    expect(status.name).toBe('alice');
+    expect(status.coordinates).toEqual([3200, 3200, 0]);
+    expect(status.slayer_task.task).toBe('Gargoyles');
+    await client.close();
+  });
+
+  it('get_quests returns the raw quest byte array', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_quests', arguments: { member_name: 'alice' } });
+    expect(firstTextContent(result as never)).toEqual([0, 1, 2]);
+    await client.close();
+  });
+
+  it('get_slayer_task returns the current task snapshot', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_slayer_task', arguments: { member_name: 'alice' } });
+    expect(firstTextContent(result as never)).toMatchObject({ task: 'Gargoyles', master: 'Duradel' });
+    await client.close();
+  });
+
+  it('get_slayer_history returns completed tasks, most recent first', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_slayer_history', arguments: { member_name: 'alice' } });
+    const history = firstTextContent(result as never) as Array<{ task: string }>;
+    expect(history[0]?.task).toBe('Cows');
+    await client.close();
+  });
+
+  it('get_combat_achievements returns the raw tier-count array', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_combat_achievements', arguments: { member_name: 'alice' } });
+    expect(firstTextContent(result as never)).toEqual([1, 2, 3, 4, 5, 6]);
+    await client.close();
+  });
+
+  it('get_clue_completion_history returns timestamped completions', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_clue_completion_history', arguments: { member_name: 'alice' } });
+    const history = firstTextContent(result as never) as Array<{ tier: string }>;
+    expect(history).toHaveLength(1);
+    expect(history[0]?.tier).toBe('easy');
+    await client.close();
+  });
+
+  it('get_deaths returns the death log', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_deaths', arguments: { member_name: 'alice' } });
+    const deaths = firstTextContent(result as never) as Array<{ killer: string }>;
+    expect(deaths[0]?.killer).toBe('Gargoyle');
+    await client.close();
+  });
+
+  it('get_farming_patches returns the raw per-slot state', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_farming_patches', arguments: { member_name: 'alice' } });
+    expect(firstTextContent(result as never)).toEqual([{ name: 'Herb patch (Falador)', raw_value: 0, state: 'empty' }]);
+    await client.close();
+  });
+
+  it('get_collection_log resolves logged items to names', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_collection_log', arguments: { member_name: 'alice' } });
+    const items = firstTextContent(result as never) as Array<{ item_id: number; name: string }>;
+    expect(items).toEqual([expect.objectContaining({ item_id: 4151, name: 'Abyssal whip' })]);
+    await client.close();
+  });
+
+  it('get_achievement_diary_progress returns the raw diary_vars array', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_achievement_diary_progress', arguments: { member_name: 'alice' } });
+    expect(firstTextContent(result as never)).toEqual(new Array(62).fill(1));
+    await client.close();
+  });
+
+  it('get_info reports server identity and instructions', async () => {
+    const client = await connectClient(port);
+    const info = client.getServerVersion();
+    expect(info?.name).toBe('osrs-mcp');
+    const instructions = client.getInstructions();
+    expect(instructions).toContain('list_group_members');
     await client.close();
   });
 

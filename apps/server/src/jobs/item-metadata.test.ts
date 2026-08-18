@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { deriveLowAlch, flattenBucketRow } from './item-metadata.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../db/events.js', () => ({ upsertItemMetadata: vi.fn().mockResolvedValue(undefined) }));
+
+const { upsertItemMetadata } = await import('../db/events.js');
+const { deriveLowAlch, flattenBucketRow, syncItemMetadata } = await import('./item-metadata.js');
 
 describe('deriveLowAlch', () => {
   it('is floor(0.4 * value)', () => {
@@ -63,5 +67,32 @@ describe('flattenBucketRow', () => {
     const rows = flattenBucketRow({ item_id: ['1'], tradeable: false, is_members_only: 0 });
     expect(rows[0]?.tradeable).toBe(true);
     expect(rows[0]?.membersOnly).toBe(true);
+  });
+});
+
+describe('syncItemMetadata', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('stops paging once a page comes back shorter than the page size', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ bucket: [{ item_id: ['4151'], item_name: 'Abyssal whip' }] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await syncItemMetadata({} as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1); // first page short (<5000) -> no further offsets fetched
+    expect(upsertItemMetadata).toHaveBeenCalledWith({}, expect.objectContaining({ itemId: 4151, name: 'Abyssal whip' }));
+  });
+
+  it('throws on a non-ok Bucket API response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 500 })),
+    );
+    await expect(syncItemMetadata({} as never)).rejects.toThrow();
   });
 });
