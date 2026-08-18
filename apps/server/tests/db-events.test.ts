@@ -1,0 +1,135 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  getClueCompletions,
+  getDeaths,
+  getHiscoreActivities,
+  getItemMetadataBatch,
+  getSlayerTaskHistory,
+  recordClueCompletion,
+  recordDeath,
+  recordSlayerTaskCompletion,
+  updateAccountType,
+  upsertHiscoreActivity,
+  upsertItemMetadata,
+} from '../src/db/events.js';
+import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
+
+describe('events', () => {
+  let testDb: TestDb;
+  let memberId: string;
+
+  beforeAll(async () => {
+    testDb = await startTestDb();
+    const group = await testDb.db
+      .insertInto('groups')
+      .values({ group_name: 'eventstest', group_token_hash: 'h' })
+      .returning('group_id')
+      .executeTakeFirstOrThrow();
+    const member = await testDb.db
+      .insertInto('members')
+      .values({ group_id: group.group_id, member_name: 'EventMember' })
+      .returning('member_id')
+      .executeTakeFirstOrThrow();
+    memberId = member.member_id;
+  }, 60_000);
+
+  afterAll(async () => {
+    await stopTestDb(testDb);
+  });
+
+  it('records slayer task completions as independent rows, most recent first', async () => {
+    await recordSlayerTaskCompletion(testDb.db, memberId, {
+      task: 'Gargoyles',
+      master: 'Duradel',
+      amountCompleted: 130,
+      outcome: 'completed',
+    });
+    await recordSlayerTaskCompletion(testDb.db, memberId, {
+      task: 'Cows',
+      master: null,
+      amountCompleted: 5,
+      outcome: 'skipped',
+    });
+
+    const history = await getSlayerTaskHistory(testDb.db, memberId, 20);
+    expect(history).toHaveLength(2);
+    expect(history[0]?.task).toBe('Cows');
+    expect(history[1]?.master).toBe('Duradel');
+  });
+
+  it('respects the limit parameter', async () => {
+    const history = await getSlayerTaskHistory(testDb.db, memberId, 1);
+    expect(history).toHaveLength(1);
+  });
+
+  it('records clue completions and filters by tier', async () => {
+    await recordClueCompletion(testDb.db, memberId, 'easy');
+    await recordClueCompletion(testDb.db, memberId, 'master');
+
+    const all = await getClueCompletions(testDb.db, memberId, undefined, 20);
+    expect(all.length).toBeGreaterThanOrEqual(2);
+
+    const masterOnly = await getClueCompletions(testDb.db, memberId, 'master', 20);
+    expect(masterOnly.every((c) => c.tier === 'master')).toBe(true);
+  });
+
+  it('records deaths with optional location/killer fields', async () => {
+    await recordDeath(testDb.db, memberId, { worldX: 3200, worldY: 3200, plane: 0, killer: 'Gargoyle' });
+    await recordDeath(testDb.db, memberId, { worldX: null, worldY: null, plane: null, killer: null });
+
+    const deaths = await getDeaths(testDb.db, memberId, 20);
+    expect(deaths).toHaveLength(2);
+    expect(deaths.some((d) => d.killer === 'Gargoyle')).toBe(true);
+    expect(deaths.some((d) => d.killer === null)).toBe(true);
+  });
+
+  it('upserts hiscore activities without duplicating (overwrite-not-insert on conflict)', async () => {
+    await upsertHiscoreActivity(testDb.db, memberId, 'Zulrah', 100);
+    await upsertHiscoreActivity(testDb.db, memberId, 'Zulrah', 150);
+
+    const activities = await getHiscoreActivities(testDb.db, memberId);
+    expect(activities.Zulrah).toBe(150);
+  });
+
+  it('updateAccountType stamps account_type_last_checked', async () => {
+    await updateAccountType(testDb.db, memberId, 'hardcore_ironman');
+    const member = await testDb.db
+      .selectFrom('members')
+      .select(['account_type', 'account_type_last_checked'])
+      .where('member_id', '=', memberId)
+      .executeTakeFirstOrThrow();
+
+    expect(member.account_type).toBe('hardcore_ironman');
+    expect(member.account_type_last_checked).not.toBeNull();
+  });
+
+  it('upserts item metadata without duplicating', async () => {
+    await upsertItemMetadata(testDb.db, {
+      itemId: 4151,
+      name: 'Abyssal whip',
+      highAlch: 72000,
+      lowAlch: 48000,
+      tradeable: true,
+      membersOnly: true,
+    });
+    await upsertItemMetadata(testDb.db, {
+      itemId: 4151,
+      name: 'Abyssal whip',
+      highAlch: 75000,
+      lowAlch: 50000,
+      tradeable: true,
+      membersOnly: true,
+    });
+
+    const batch = await getItemMetadataBatch(testDb.db, [4151]);
+    expect(batch.get(4151)?.highAlch).toBe(75000);
+  });
+
+  it('getItemMetadataBatch omits unknown ids and short-circuits on empty input', async () => {
+    const batch = await getItemMetadataBatch(testDb.db, [999999]);
+    expect(batch.has(999999)).toBe(false);
+
+    const empty = await getItemMetadataBatch(testDb.db, []);
+    expect(empty.size).toBe(0);
+  });
+});
