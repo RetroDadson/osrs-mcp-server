@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { createRestAuthPreHandler } from './auth/index.js';
 import { GroupFullError } from './db/groups.js';
+import { registerMcpRoute } from './mcp/index.js';
 import { registerAuthedRoutes, registerUnauthedRoutes, type RouteDeps } from './routes/index.js';
 
 const JSON_BODY_LIMIT_BYTES = 100_000;
@@ -12,7 +13,8 @@ export async function buildApp(deps: RouteDeps): Promise<FastifyInstance> {
   await app.register(cors, {
     origin: true,
     methods: ['GET', 'POST', 'DELETE', 'PUT', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Accept', 'Content-Type', 'Content-Length'],
+    allowedHeaders: ['Authorization', 'Accept', 'Content-Type', 'Content-Length', 'Mcp-Session-Id', 'Mcp-Protocol-Version'],
+    exposedHeaders: ['Mcp-Session-Id'],
     maxAge: 3600,
   });
 
@@ -39,6 +41,8 @@ export async function buildApp(deps: RouteDeps): Promise<FastifyInstance> {
     authedScope.addHook('preHandler', createRestAuthPreHandler(authDeps));
     registerAuthedRoutes(authedScope, deps);
   });
+
+  registerMcpRoute(app, deps.db, authDeps);
 
   return app;
 }
