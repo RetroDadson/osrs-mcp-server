@@ -9,6 +9,7 @@ npm-debug.log*
 # Build output
 dist/
 build/
+*.tsbuildinfo
 
 # Testing
 coverage/
