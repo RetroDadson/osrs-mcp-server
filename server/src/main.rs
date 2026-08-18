@@ -29,6 +29,8 @@ async fn main() -> std::io::Result<()> {
 
     unauthed::start_ge_updater();
     unauthed::start_skills_aggregator(pool.clone());
+    unauthed::start_hiscores_poller(pool.clone());
+    unauthed::start_item_metadata_sync(pool.clone());
 
     let update_batcher_pool = config.pg.create_pool(None, NoTls).unwrap();
     let (tx, rx) = mpsc::channel::<models::GroupMember>(10000);
@@ -36,6 +38,21 @@ async fn main() -> std::io::Result<()> {
         update_batcher::background_worker(update_batcher_pool, rx, None).await;
     });
     let auth_cache = std::sync::Arc::new(server::auth_middleware::AuthenticationCache::new());
+
+    // MCP server: a second, axum-hosted HTTP listener (port 8081) alongside the actix-web
+    // REST API. Shares the same Postgres pool and AuthenticationCache. At the
+    // reverse-proxy/ingress layer, route <domain>/mcp/* to this port so it's one hostname
+    // externally. See the plan's Phase 4 notes on why a second port over a single-port
+    // actix integration (rmcp-actix-web trails rmcp's current version).
+    let mcp_router = server::mcp::build_router(pool.clone(), auth_cache.clone());
+    tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:8081")
+            .await
+            .expect("failed to bind MCP server port 8081");
+        axum::serve(listener, mcp_router)
+            .await
+            .expect("MCP server crashed");
+    });
 
     HttpServer::new(move || {
         let unauthed_scope = web::scope("/api")
@@ -52,7 +69,10 @@ async fn main() -> std::io::Result<()> {
             .service(authed::am_i_logged_in)
             .service(authed::am_i_in_group)
             .service(authed::get_skill_data)
-            .service(authed::get_collection_log);
+            .service(authed::get_collection_log)
+            .service(authed::slayer_task_completed)
+            .service(authed::clue_completed)
+            .service(authed::death);
         let json_config = web::JsonConfig::default().limit(100000);
         let cors = Cors::default()
             .allow_any_origin()

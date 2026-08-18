@@ -12,10 +12,10 @@ use tokio::time::{self, Duration, Instant};
 static BATCH_SIZE: usize = 5000;
 static CHUNK_SIZE: usize = 50;
 
-/// Number of columns per member update row. With 15 columns, the PostgreSQL
-/// parameter-count limit (65,535) allows a maximum chunk size of 65535 / 15 =
-/// 4369 rows when using the VALUES approach.
-const COLUMNS_PER_ROW: usize = 15;
+/// Number of columns per member update row. With 18 columns, the PostgreSQL
+/// parameter-count limit (65,535) allows a maximum chunk size of 65535 / 18 =
+/// 3640 rows when using the VALUES approach.
+const COLUMNS_PER_ROW: usize = 18;
 
 pub async fn background_worker(
     pool: Pool,
@@ -265,6 +265,15 @@ fn merge_group_member(older: &mut GroupMember, newer: &GroupMember) {
     if newer.potion_storage.is_some() {
         older.potion_storage = newer.potion_storage.clone();
     }
+    if newer.slayer_task.is_some() {
+        older.slayer_task = newer.slayer_task.clone();
+    }
+    if newer.combat_achievements.is_some() {
+        older.combat_achievements = newer.combat_achievements.clone();
+    }
+    if newer.farming_patches.is_some() {
+        older.farming_patches = newer.farming_patches.clone();
+    }
 
     if let Some(newer_deposited) = &newer.deposited {
         match &older.deposited {
@@ -311,7 +320,7 @@ fn build_values_statement(size: usize) -> String {
         .map(|row| {
             let offset = row * COLUMNS_PER_ROW;
             format!(
-                "(${}::int8,${}::text,${}::int4[],${}::int4[],${}::int4[],${}::bytea,${}::int4[],${}::int4[],${}::int4[],${}::int4[],${}::text,${}::int4[],${}::int4[],${}::int4[],${}::int4[])",
+                "(${}::int8,${}::text,${}::int4[],${}::int4[],${}::int4[],${}::bytea,${}::int4[],${}::int4[],${}::int4[],${}::int4[],${}::text,${}::int4[],${}::int4[],${}::int4[],${}::int4[],${}::text,${}::int4[],${}::text)",
                 offset + 1,
                 offset + 2,
                 offset + 3,
@@ -327,6 +336,9 @@ fn build_values_statement(size: usize) -> String {
                 offset + 13,
                 offset + 14,
                 offset + 15,
+                offset + 16,
+                offset + 17,
+                offset + 18,
             )
         })
         .collect::<Vec<_>>()
@@ -334,7 +346,7 @@ fn build_values_statement(size: usize) -> String {
 
     format!(
         r#"
-UPDATE groupironman.members AS a SET
+UPDATE osrsmcp.members AS a SET
   stats = COALESCE(b.stats, a.stats),
   coordinates = COALESCE(b.coordinates, a.coordinates),
   skills = COALESCE(b.skills, a.skills),
@@ -347,11 +359,14 @@ UPDATE groupironman.members AS a SET
   seed_vault = COALESCE(b.seed_vault, a.seed_vault),
   diary_vars = COALESCE(b.diary_vars, a.diary_vars),
   collection_log = COALESCE(b.collection_log, a.collection_log),
-  potion_storage = COALESCE(b.potion_storage, a.potion_storage)
+  potion_storage = COALESCE(b.potion_storage, a.potion_storage),
+  slayer_task = COALESCE(b.slayer_task, a.slayer_task),
+  combat_achievements = COALESCE(b.combat_achievements, a.combat_achievements),
+  farming_patches = COALESCE(b.farming_patches, a.farming_patches)
 FROM (VALUES {values}) AS b(
   group_id, member_name, stats, coordinates, skills, quests, inventory,
   equipment, bank, rune_pouch, interacting, seed_vault, diary_vars, collection_log,
-  potion_storage
+  potion_storage, slayer_task, combat_achievements, farming_patches
 )
 WHERE a.group_id = b.group_id AND a.member_name = b.member_name::citext
 "#
@@ -399,6 +414,14 @@ async fn process_chunk(pool: &Pool, chunk: Vec<GroupMember>) -> Option<()> {
         .iter()
         .map(|member_data| serialize_serde(&member_data.interacting).unwrap_or_default())
         .collect();
+    let slayer_task_storage: Vec<Option<String>> = buffer
+        .iter()
+        .map(|member_data| serialize_serde(&member_data.slayer_task).unwrap_or_default())
+        .collect();
+    let farming_patches_storage: Vec<Option<String>> = buffer
+        .iter()
+        .map(|member_data| serialize_serde(&member_data.farming_patches).unwrap_or_default())
+        .collect();
     let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
         Vec::with_capacity(COLUMNS_PER_ROW * chunk_size);
     for (index, member_data) in buffer.iter().enumerate() {
@@ -417,6 +440,9 @@ async fn process_chunk(pool: &Pool, chunk: Vec<GroupMember>) -> Option<()> {
         params.push(&member_data.diary_vars);
         params.push(&member_data.collection_log_v2);
         params.push(&member_data.potion_storage);
+        params.push(&slayer_task_storage[index]);
+        params.push(&member_data.combat_achievements);
+        params.push(&farming_patches_storage[index]);
     }
 
     if let Err(e) = client.execute(&update_stmt, &params).await {
@@ -477,7 +503,7 @@ async fn process_bank_side_effects(
     let select_stmt = transaction
         .prepare_cached(
             r#"SELECT a.group_id, a.member_name, a.bank
-FROM groupironman.members a
+FROM osrsmcp.members a
 JOIN UNNEST($1::int8[], $2::text[]) AS t(group_id, member_name)
 ON a.group_id = t.group_id AND a.member_name = t.member_name::citext
 FOR UPDATE"#,
@@ -547,7 +573,7 @@ FOR UPDATE"#,
     if !update_group_ids.is_empty() {
         let update_stmt = transaction
             .prepare_cached(
-                r#"UPDATE groupironman.members AS a
+                r#"UPDATE osrsmcp.members AS a
 SET bank = t.new_bank::int4[], bank_last_update = NOW()
 FROM UNNEST($1::int8[], $2::text[], $3::text[]) AS t(group_id, member_name, new_bank)
 WHERE a.group_id = t.group_id AND a.member_name = t.member_name::citext"#,
@@ -583,7 +609,7 @@ async fn process_shared_bank_updates(
 
     let stmt = transaction
         .prepare_cached(
-            r#"UPDATE groupironman.members SET bank=$1, bank_last_update=NOW()
+            r#"UPDATE osrsmcp.members SET bank=$1, bank_last_update=NOW()
 WHERE group_id=$2 AND member_name=$3"#,
         )
         .await?;
@@ -625,6 +651,10 @@ mod tests {
             diary_vars: None,
             collection_log_v2: None,
             potion_storage: None,
+            slayer_task: None,
+            combat_achievements: None,
+            farming_patches: None,
+            account_type: None,
             last_updated: None,
         }
     }
@@ -681,8 +711,8 @@ mod tests {
 
     #[test]
     fn test_merge_deposited_saturating_add_prevents_overflow() {
-        let older = vec![1, i32::MAX as i32];
-        let newer = vec![1, i32::MAX as i32];
+        let older = vec![1, i32::MAX];
+        let newer = vec![1, i32::MAX];
         let result = merge_deposited(&older, &newer);
         let map: HashMap<i32, i32> = result.chunks_exact(2).map(|c| (c[0], c[1])).collect();
         // i32::MAX + i32::MAX = 4294967294 (i64), which truncates to -2 as i32.
@@ -793,6 +823,95 @@ mod tests {
 
         merge_group_member(&mut older, &newer);
         assert_eq!(older.potion_storage, Some(vec![101, 4]));
+    }
+
+    #[test]
+    fn test_merge_group_member_slayer_task_overwrites() {
+        use crate::models::SlayerTask;
+
+        let mut older = make_member(Some(1), "alice");
+        older.slayer_task = Some(SlayerTask {
+            task: "Abyssal demons".to_string(),
+            master: Some("Duradel".to_string()),
+            amount_remaining: 5,
+            initial_amount: 130,
+            points: 12,
+            task_streak: 40,
+            wilderness_streak: 0,
+        });
+
+        let mut newer = make_member(Some(1), "alice");
+        newer.slayer_task = Some(SlayerTask {
+            task: "Gargoyles".to_string(),
+            master: Some("Duradel".to_string()),
+            amount_remaining: 150,
+            initial_amount: 150,
+            points: 13,
+            task_streak: 41,
+            wilderness_streak: 0,
+        });
+
+        merge_group_member(&mut older, &newer);
+        assert_eq!(older.slayer_task.as_ref().unwrap().task, "Gargoyles");
+    }
+
+    #[test]
+    fn test_merge_group_member_slayer_task_none_preserves_older() {
+        use crate::models::SlayerTask;
+
+        let mut older = make_member(Some(1), "alice");
+        older.slayer_task = Some(SlayerTask {
+            task: "Abyssal demons".to_string(),
+            master: None,
+            amount_remaining: 5,
+            initial_amount: 130,
+            points: 12,
+            task_streak: 40,
+            wilderness_streak: 0,
+        });
+
+        let newer = make_member(Some(1), "alice");
+        merge_group_member(&mut older, &newer);
+        assert_eq!(older.slayer_task.as_ref().unwrap().task, "Abyssal demons");
+    }
+
+    #[test]
+    fn test_merge_group_member_combat_achievements_overwrites() {
+        let mut older = make_member(Some(1), "alice");
+        older.combat_achievements = Some(vec![10, 5, 2, 0, 0, 0]);
+
+        let mut newer = make_member(Some(1), "alice");
+        newer.combat_achievements = Some(vec![10, 8, 3, 1, 0, 0]);
+
+        merge_group_member(&mut older, &newer);
+        assert_eq!(older.combat_achievements, Some(vec![10, 8, 3, 1, 0, 0]));
+    }
+
+    #[test]
+    fn test_merge_group_member_farming_patches_overwrites() {
+        use crate::models::{CropState, FarmingPatch};
+
+        let mut older = make_member(Some(1), "alice");
+        older.farming_patches = Some(vec![FarmingPatch {
+            name: "Catherby herb".to_string(),
+            state: Some(CropState::Growing),
+            raw_value: 5,
+            produce: Some("Ranarr weed".to_string()),
+        }]);
+
+        let mut newer = make_member(Some(1), "alice");
+        newer.farming_patches = Some(vec![FarmingPatch {
+            name: "Catherby herb".to_string(),
+            state: Some(CropState::Harvestable),
+            raw_value: 12,
+            produce: Some("Ranarr weed".to_string()),
+        }]);
+
+        merge_group_member(&mut older, &newer);
+        assert_eq!(
+            older.farming_patches.as_ref().unwrap()[0].state,
+            Some(CropState::Harvestable)
+        );
     }
 
     #[test]

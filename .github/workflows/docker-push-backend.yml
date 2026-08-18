@@ -26,9 +26,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
+        # NOTE: requires DOCKERHUB_USERNAME/DOCKERHUB_TOKEN repo secrets to be configured before this will actually push anywhere —
+        # not set up yet, deferred alongside the hosting decision (see plan's Hosting section).
         name: Build and push
         uses: docker/build-push-action@v3
         with:
           context: ./server
           push: true
-          tags: chrisleeeee/group-ironmen-tracker-backend:latest
+          tags: retrodadson/osrs-mcp-backend:latest

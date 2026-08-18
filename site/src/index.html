@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Group Ironmen</title>
+    <title>OSRS MCP</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
@@ -72,46 +72,15 @@
       route-outlet=".unauthed-section__outlet"
       route-wrapper=".unauthed-section"
     ></app-route>
-    <app-route
-      route-path="/demo"
-      route-component="demo-page"
-      route-outlet=".unauthed-section__outlet"
-      route-wrapper=".unauthed-section"
-    ></app-route>
 
     <app-route
       route-path="/"
-      route-component="items-page"
-      route-outlet=".authed-section__outlet"
-      route-wrapper=".authed-section"
-    ></app-route>
-    <app-route route-path="/items" alias-for="/" route-wrapper=".authed-section"></app-route>
-    <app-route
-      route-path="/map"
-      route-component="map-page"
-      route-outlet=".authed-section__outlet"
-      route-wrapper=".authed-section"
-    ></app-route>
-    <app-route
-      route-path="/settings"
       route-component="group-settings"
       route-outlet=".authed-section__outlet"
       route-wrapper=".authed-section"
     ></app-route>
-    <app-route
-      route-path="/graphs"
-      route-component="skills-graphs"
-      route-outlet=".authed-section__outlet"
-      route-wrapper=".authed-section"
-      ></app-route>
-    <app-route
-      route-path="/panels"
-      route-component="panels-page"
-      route-outlet=".authed-section__outlet"
-      route-wrapper=".authed-section"
-    ></app-route>
+    <app-route route-path="/settings" alias-for="/" route-wrapper=".authed-section"></app-route>
 
-    <canvas-map id="background-worldmap"></canvas-map>
     <wrap-routes class="unauthed-section" route-path="">
       <template>
         <main class="unauthed-section__outlet"></main>
@@ -125,7 +94,6 @@
           <app-navigation class="rsborder-tiny rsbackground"></app-navigation>
           <div class="authed-section__outlet"></div>
         </div>
-        <side-panel></side-panel>
       </template>
     </wrap-routes>
 

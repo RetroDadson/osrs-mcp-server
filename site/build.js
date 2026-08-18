@@ -10,39 +10,6 @@ if (productionMode) {
   console.log("Production mode is enabled");
 }
 
-const mapJsonPlugin = {
-  name: 'mapTilesJson',
-  setup(build) {
-    const mapImageFiles = fs.readdirSync("public/map").filter((file) => file.endsWith('.webp')).map((file) => path.basename(file, '.webp'));
-
-    const tiles = [[], [], [], []];
-    for (const mapImageFile of mapImageFiles) {
-      const [plane, x, y] = mapImageFile.split('_').map((x) => parseInt(x, 10));
-      tiles[plane].push(((x + y) * (x + y + 1)) / 2 + y);
-    }
-
-    const icons = JSON.parse(fs.readFileSync("public/data/map_icons.json", 'utf8'));
-
-    const labels = JSON.parse(fs.readFileSync("public/data/map_labels.json", 'utf8'));
-
-    let links;
-    try {
-      links = JSON.parse(fs.readFileSync("public/data/map_links.json", 'utf8'));
-    } catch {
-      links = {};
-    }
-
-    const result = {
-      tiles,
-      icons,
-      labels,
-      links
-    };
-
-    fs.writeFileSync('public/data/map.json', JSON.stringify(result));
-  }
-}
-
 const componentBuildPlugin = {
   name: 'componentBuild',
   setup(build) {
@@ -168,7 +135,7 @@ function build() {
     minify: false,
     format: 'esm',
     outfile: 'public/app.js',
-    plugins: [componentBuildPlugin, minifyJsPlugin, htmlBuildPlugin, buildLoggingPlugin, mapJsonPlugin]
+    plugins: [componentBuildPlugin, minifyJsPlugin, htmlBuildPlugin, buildLoggingPlugin]
   }).catch((error) => console.error(error));
 }
 

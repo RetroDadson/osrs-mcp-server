@@ -14,15 +14,15 @@ static TEST_MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 /// Create a connection pool for the test database.
 ///
 /// By default, reads connection parameters from `config.toml` (same file
-/// the server uses) but overrides the database name to `group_ironmen_test`.
+/// the server uses) but overrides the database name to `osrsmcp_test`.
 ///
 /// To use a completely custom connection string, set the `TEST_DATABASE_URL`
 /// environment variable:
 ///
-///   TEST_DATABASE_URL="postgres://postgres:password@localhost:5432/group_ironmen_test"
+///   TEST_DATABASE_URL="postgres://postgres:password@localhost:5432/osrsmcp_test"
 ///
 /// Integration tests require a running PostgreSQL instance with a
-/// `group_ironmen_test` database. Run them with:
+/// `osrsmcp_test` database. Run them with:
 ///
 ///   cargo test
 async fn create_test_pool() -> Pool {
@@ -33,7 +33,7 @@ async fn create_test_pool() -> Pool {
     } else {
         let config = Config::from_env().expect("failed to read config.toml");
         let mut pg = config.pg.clone();
-        pg.dbname = Some("group_ironmen_test".to_string());
+        pg.dbname = Some("osrsmcp_test".to_string());
         pg
     };
 
@@ -52,18 +52,18 @@ async fn setup_test_group(pool: &Pool) -> i64 {
 
     // Drop and recreate schema for a clean slate
     client
-        .execute("DROP SCHEMA IF EXISTS groupironman CASCADE", &[])
+        .execute("DROP SCHEMA IF EXISTS osrsmcp CASCADE", &[])
         .await
         .expect("failed to drop schema");
     client
-        .execute("CREATE SCHEMA IF NOT EXISTS groupironman", &[])
+        .execute("CREATE SCHEMA IF NOT EXISTS osrsmcp", &[])
         .await
         .expect("failed to create schema");
 
     // Create the groups table (normally created by schema.sql in production)
     client
         .execute(
-            r#"CREATE TABLE groupironman.groups(
+            r#"CREATE TABLE osrsmcp.groups(
                 group_id BIGSERIAL UNIQUE,
                 group_name TEXT NOT NULL,
                 group_token_hash CHAR(64) NOT NULL,
@@ -116,6 +116,10 @@ fn make_member(group_id: Option<i64>, name: &str) -> GroupMember {
         diary_vars: None,
         collection_log_v2: None,
         potion_storage: None,
+        slayer_task: None,
+        combat_achievements: None,
+        farming_patches: None,
+        account_type: None,
         last_updated: None,
     }
 }
@@ -246,7 +250,7 @@ async fn test_concurrent_deposits_accumulate_correctly() {
     let client = pool.get().await.expect("failed to get client");
     client
         .execute(
-            "UPDATE groupironman.members SET bank = ARRAY[10, 5]::int4[] WHERE group_id=$1 AND member_name=$2",
+            "UPDATE osrsmcp.members SET bank = ARRAY[10, 5]::int4[] WHERE group_id=$1 AND member_name=$2",
             &[&group_id, &"alice"],
         )
         .await
@@ -471,7 +475,7 @@ async fn test_bank_overwrite_and_deposit_same_batch() {
     let client = pool.get().await.expect("failed to get client");
     client
         .execute(
-            "UPDATE groupironman.members SET bank = ARRAY[99, 99, 88, 88]::int4[] WHERE group_id=$1 AND member_name=$2",
+            "UPDATE osrsmcp.members SET bank = ARRAY[99, 99, 88, 88]::int4[] WHERE group_id=$1 AND member_name=$2",
             &[&group_id, &"alice"],
         )
         .await
@@ -628,7 +632,7 @@ async fn test_batch_exceeding_chunk_size() {
         let name = format!("extra{}", i);
         let create_stmt = client
             .prepare_cached(
-                "INSERT INTO groupironman.members (group_id, member_name) VALUES ($1, $2)",
+                "INSERT INTO osrsmcp.members (group_id, member_name) VALUES ($1, $2)",
             )
             .await
             .expect("failed to prepare insert");
@@ -1129,4 +1133,396 @@ async fn test_potion_storage_idempotent_resend() {
     );
 
     drop(tx);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Integration tests: Phase 3 new snapshot fields (slayer_task, combat_achievements,
+// farming_patches) round-trip through the update_batcher pipeline
+// ──────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_slayer_task_snapshot_round_trips() {
+    use server::models::SlayerTask;
+
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+
+    let (tx, mut notify_rx) = spawn_worker(&pool);
+
+    let mut update = make_member(Some(group_id), "alice");
+    update.slayer_task = Some(SlayerTask {
+        task: "Gargoyles".to_string(),
+        master: Some("Duradel".to_string()),
+        amount_remaining: 148,
+        initial_amount: 150,
+        points: 13,
+        task_streak: 41,
+        wilderness_streak: 0,
+    });
+
+    tx.send(update).await.unwrap();
+    notify_rx.recv().await.expect("worker should process batch");
+
+    let client = pool.get().await.expect("failed to get client");
+    let alice = get_member_from_db(&client, group_id, "alice").await;
+    let task = alice.slayer_task.expect("slayer_task should round-trip");
+    assert_eq!(task.task, "Gargoyles");
+    assert_eq!(task.master, Some("Duradel".to_string()));
+    assert_eq!(task.amount_remaining, 148);
+    assert_eq!(task.points, 13);
+
+    drop(tx);
+}
+
+#[tokio::test]
+async fn test_combat_achievements_snapshot_round_trips() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+
+    let (tx, mut notify_rx) = spawn_worker(&pool);
+
+    let mut update = make_member(Some(group_id), "alice");
+    update.combat_achievements = Some(vec![50, 40, 30, 20, 10, 5]);
+
+    tx.send(update).await.unwrap();
+    notify_rx.recv().await.expect("worker should process batch");
+
+    let client = pool.get().await.expect("failed to get client");
+    let alice = get_member_from_db(&client, group_id, "alice").await;
+    assert_eq!(alice.combat_achievements, Some(vec![50, 40, 30, 20, 10, 5]));
+
+    drop(tx);
+}
+
+#[tokio::test]
+async fn test_farming_patches_snapshot_round_trips() {
+    use server::models::{CropState, FarmingPatch};
+
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+
+    let (tx, mut notify_rx) = spawn_worker(&pool);
+
+    let mut update = make_member(Some(group_id), "alice");
+    update.farming_patches = Some(vec![
+        FarmingPatch {
+            name: "Catherby herb".to_string(),
+            state: Some(CropState::Harvestable),
+            raw_value: 12,
+            produce: Some("Ranarr weed".to_string()),
+        },
+        FarmingPatch {
+            name: "Falador tree".to_string(),
+            state: Some(CropState::Growing),
+            raw_value: 5,
+            produce: Some("Yew".to_string()),
+        },
+    ]);
+
+    tx.send(update).await.unwrap();
+    notify_rx.recv().await.expect("worker should process batch");
+
+    let client = pool.get().await.expect("failed to get client");
+    let alice = get_member_from_db(&client, group_id, "alice").await;
+    let patches = alice.farming_patches.expect("farming_patches should round-trip");
+    assert_eq!(patches.len(), 2);
+    assert_eq!(patches[0].name, "Catherby herb");
+    assert_eq!(patches[0].state, Some(CropState::Harvestable));
+    assert_eq!(patches[1].state, Some(CropState::Growing));
+
+    drop(tx);
+}
+
+#[tokio::test]
+async fn test_new_snapshot_fields_partial_update_preserves_others() {
+    // Mirrors test_concurrent_updates_same_member_no_lost_fields for the 3 new fields:
+    // updating combat_achievements alone must not clobber a previously-set slayer_task.
+    use server::models::SlayerTask;
+
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+
+    let (tx, mut notify_rx) = spawn_worker(&pool);
+
+    let mut update1 = make_member(Some(group_id), "alice");
+    update1.slayer_task = Some(SlayerTask {
+        task: "Nechryael".to_string(),
+        master: None,
+        amount_remaining: 100,
+        initial_amount: 100,
+        points: 5,
+        task_streak: 10,
+        wilderness_streak: 0,
+    });
+    tx.send(update1).await.unwrap();
+    notify_rx.recv().await.expect("worker should process batch 1");
+
+    let mut update2 = make_member(Some(group_id), "alice");
+    update2.combat_achievements = Some(vec![1, 2, 3, 4, 5, 6]);
+    tx.send(update2).await.unwrap();
+    notify_rx.recv().await.expect("worker should process batch 2");
+
+    let client = pool.get().await.expect("failed to get client");
+    let alice = get_member_from_db(&client, group_id, "alice").await;
+    assert_eq!(
+        alice.slayer_task.map(|t| t.task),
+        Some("Nechryael".to_string()),
+        "slayer_task should survive an unrelated combat_achievements-only update"
+    );
+    assert_eq!(alice.combat_achievements, Some(vec![1, 2, 3, 4, 5, 6]));
+
+    drop(tx);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Integration tests: Phase 3 event-log tables and server-polled reference data
+// (bypass update_batcher entirely - direct db:: function calls)
+// ──────────────────────────────────────────────────────────────────────────
+
+async fn get_member_id(client: &Object, group_id: i64, name: &str) -> i64 {
+    db::get_member_id(client, group_id, name)
+        .await
+        .expect("failed to resolve member id")
+}
+
+#[tokio::test]
+async fn test_record_slayer_task_completion_and_history() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+    let client = pool.get().await.expect("failed to get client");
+    let member_id = get_member_id(&client, group_id, "alice").await;
+
+    db::record_slayer_task_completion(&client, member_id, "Gargoyles", Some("Duradel"), 150, "completed")
+        .await
+        .expect("failed to record slayer task completion");
+
+    let rows = client
+        .query(
+            "SELECT task, master, amount_completed, outcome FROM osrsmcp.slayer_task_history WHERE member_id=$1",
+            &[&member_id],
+        )
+        .await
+        .expect("failed to query slayer_task_history");
+    assert_eq!(rows.len(), 1);
+    let task: String = rows[0].get("task");
+    let master: Option<String> = rows[0].get("master");
+    let amount_completed: i32 = rows[0].get("amount_completed");
+    let outcome: String = rows[0].get("outcome");
+    assert_eq!(task, "Gargoyles");
+    assert_eq!(master, Some("Duradel".to_string()));
+    assert_eq!(amount_completed, 150);
+    assert_eq!(outcome, "completed");
+}
+
+#[tokio::test]
+async fn test_record_clue_completion_and_history() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+    let client = pool.get().await.expect("failed to get client");
+    let member_id = get_member_id(&client, group_id, "alice").await;
+
+    db::record_clue_completion(&client, member_id, "elite")
+        .await
+        .expect("failed to record clue completion");
+    db::record_clue_completion(&client, member_id, "elite")
+        .await
+        .expect("failed to record second clue completion");
+
+    let rows = client
+        .query(
+            "SELECT tier FROM osrsmcp.clue_completions WHERE member_id=$1",
+            &[&member_id],
+        )
+        .await
+        .expect("failed to query clue_completions");
+    assert_eq!(rows.len(), 2, "each completion should be its own row, not upserted");
+}
+
+#[tokio::test]
+async fn test_record_death_and_log() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+    let client = pool.get().await.expect("failed to get client");
+    let member_id = get_member_id(&client, group_id, "alice").await;
+
+    db::record_death(&client, member_id, Some(3200), Some(3200), Some(0), Some("Zulrah"))
+        .await
+        .expect("failed to record death");
+
+    let rows = client
+        .query(
+            "SELECT world_x, world_y, plane, killer FROM osrsmcp.deaths WHERE member_id=$1",
+            &[&member_id],
+        )
+        .await
+        .expect("failed to query deaths");
+    assert_eq!(rows.len(), 1);
+    let killer: Option<String> = rows[0].get("killer");
+    assert_eq!(killer, Some("Zulrah".to_string()));
+}
+
+#[tokio::test]
+async fn test_upsert_hiscore_activity_updates_existing_score() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+    let client = pool.get().await.expect("failed to get client");
+    let member_id = get_member_id(&client, group_id, "alice").await;
+
+    db::upsert_hiscore_activity(&client, member_id, "Zulrah", 10)
+        .await
+        .expect("failed to upsert hiscore activity");
+    db::upsert_hiscore_activity(&client, member_id, "Zulrah", 15)
+        .await
+        .expect("failed to upsert hiscore activity again");
+
+    let activities = db::get_hiscore_activities(&client, member_id)
+        .await
+        .expect("failed to get hiscore activities");
+    assert_eq!(activities.get("Zulrah"), Some(&15), "second upsert should overwrite, not add a row");
+    assert_eq!(activities.len(), 1);
+}
+
+#[tokio::test]
+async fn test_update_account_type_persists_and_returns_via_get_group_data() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+    let client = pool.get().await.expect("failed to get client");
+    let member_id = get_member_id(&client, group_id, "alice").await;
+
+    db::update_account_type(&client, member_id, "hardcore_ironman")
+        .await
+        .expect("failed to update account type");
+
+    let alice = get_member_from_db(&client, group_id, "alice").await;
+    assert_eq!(alice.account_type, Some("hardcore_ironman".to_string()));
+}
+
+#[tokio::test]
+async fn test_upsert_item_metadata_updates_existing_row() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    setup_test_group(&pool).await;
+    let client = pool.get().await.expect("failed to get client");
+
+    db::upsert_item_metadata(&client, 4151, "Abyssal whip", Some(72000), Some(48000), true, Some(true))
+        .await
+        .expect("failed to upsert item metadata");
+    db::upsert_item_metadata(&client, 4151, "Abyssal whip", Some(72000), Some(48000), true, Some(true))
+        .await
+        .expect("failed to upsert item metadata again");
+
+    let rows = client
+        .query("SELECT name, high_alch, low_alch, tradeable, members_only FROM osrsmcp.item_metadata WHERE item_id=$1", &[&4151])
+        .await
+        .expect("failed to query item_metadata");
+    assert_eq!(rows.len(), 1, "second upsert should update, not duplicate");
+    let name: String = rows[0].get("name");
+    let tradeable: bool = rows[0].get("tradeable");
+    assert_eq!(name, "Abyssal whip");
+    assert!(tradeable);
+}
+
+#[tokio::test]
+async fn test_list_all_members_excludes_shared_member() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+    let client = pool.get().await.expect("failed to get client");
+
+    let members = db::list_all_members(&client)
+        .await
+        .expect("failed to list all members");
+
+    let names: Vec<&str> = members.iter().map(|m| m.member_name.as_str()).collect();
+    assert!(names.contains(&"alice"));
+    assert!(names.contains(&"bob"));
+    assert!(names.contains(&"carol"));
+    assert!(
+        !names.contains(&SHARED_MEMBER),
+        "list_all_members should exclude the @SHARED pseudo-member"
+    );
+    let _ = group_id;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Integration tests: skills aggregation/retention background job (db:: functions
+// called directly, same as start_skills_aggregator's periodic loop would)
+// ──────────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_aggregate_skills_and_get_skills_for_period() {
+    let _guard = TEST_MUTEX.lock().await;
+    let pool = create_test_pool().await;
+    let group_id = setup_test_group(&pool).await;
+
+    let (tx, mut notify_rx) = spawn_worker(&pool);
+    let mut update = make_member(Some(group_id), "alice");
+    update.skills = Some(vec![100_000; 24]);
+    tx.send(update).await.unwrap();
+    notify_rx.recv().await.expect("worker should process batch");
+    drop(tx);
+
+    let mut client = pool.get().await.expect("failed to get client");
+    let member_id = db::get_member_id(&client, group_id, "alice")
+        .await
+        .expect("failed to resolve member id");
+
+    // aggregate_skills should snapshot alice's current skills into skills_day/month/year,
+    // since aggregation_info.last_aggregation defaults to epoch on a fresh schema.
+    db::aggregate_skills(&mut client)
+        .await
+        .expect("aggregate_skills should succeed");
+
+    // A second, older row for the same member+period exercises get_skills_for_period's
+    // "push onto existing member" branch (not just "first row for this member").
+    client
+        .execute(
+            r#"
+INSERT INTO osrsmcp.skills_day (member_id, time, skills)
+VALUES ($1, NOW() - interval '1 day', $2)
+ON CONFLICT (member_id, time) DO NOTHING
+"#,
+            &[&member_id, &vec![50_000i32; 24]],
+        )
+        .await
+        .expect("failed to seed a second historical skills_day row");
+
+    let day_data = db::get_skills_for_period(&client, group_id, db::AggregatePeriod::Day)
+        .await
+        .expect("get_skills_for_period(Day) should succeed");
+    let alice_day = day_data
+        .iter()
+        .find(|m| m.name == "alice")
+        .expect("alice should have day skill data");
+    assert!(
+        alice_day.skill_data.len() >= 2,
+        "expected at least 2 skills_day rows for alice, got {}",
+        alice_day.skill_data.len()
+    );
+
+    // Month and Year exercise the same query's other format! branches.
+    let month_data = db::get_skills_for_period(&client, group_id, db::AggregatePeriod::Month)
+        .await
+        .expect("get_skills_for_period(Month) should succeed");
+    assert!(month_data.iter().any(|m| m.name == "alice"));
+
+    let year_data = db::get_skills_for_period(&client, group_id, db::AggregatePeriod::Year)
+        .await
+        .expect("get_skills_for_period(Year) should succeed");
+    assert!(year_data.iter().any(|m| m.name == "alice"));
+
+    // Retention pruning: with only recent rows present, this deletes nothing, but it must
+    // execute cleanly across all three periods.
+    db::apply_skills_retention(&mut client)
+        .await
+        .expect("apply_skills_retention should succeed");
 }

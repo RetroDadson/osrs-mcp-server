@@ -26,6 +26,18 @@ pub enum ApiError {
     IsMemberInGroupError(tokio_postgres::error::Error),
     #[from(ignore)]
     GetSkillsDataError(tokio_postgres::error::Error),
+    #[from(ignore)]
+    RecordSlayerTaskCompletionError(tokio_postgres::error::Error),
+    #[from(ignore)]
+    RecordClueCompletionError(tokio_postgres::error::Error),
+    #[from(ignore)]
+    RecordDeathError(tokio_postgres::error::Error),
+    #[from(ignore)]
+    UpsertHiscoreActivityError(tokio_postgres::error::Error),
+    #[from(ignore)]
+    UpdateAccountTypeError(tokio_postgres::error::Error),
+    #[from(ignore)]
+    UpsertItemMetadataError(tokio_postgres::error::Error),
     GroupFullError,
     UreqError(ureq::Error),
     GroupMemberValidationError(String),
@@ -56,6 +68,22 @@ impl ResponseError for ApiError {
             ApiError::GetGroupDataError(ref err) => handle_pg_error(err, "GetGroupDataError"),
             ApiError::IsMemberInGroupError(ref err) => handle_pg_error(err, "IsMemberInGroupError"),
             ApiError::GetSkillsDataError(ref err) => handle_pg_error(err, "GetSkillsDataError"),
+            ApiError::RecordSlayerTaskCompletionError(ref err) => {
+                handle_pg_error(err, "RecordSlayerTaskCompletionError")
+            }
+            ApiError::RecordClueCompletionError(ref err) => {
+                handle_pg_error(err, "RecordClueCompletionError")
+            }
+            ApiError::RecordDeathError(ref err) => handle_pg_error(err, "RecordDeathError"),
+            ApiError::UpsertHiscoreActivityError(ref err) => {
+                handle_pg_error(err, "UpsertHiscoreActivityError")
+            }
+            ApiError::UpdateAccountTypeError(ref err) => {
+                handle_pg_error(err, "UpdateAccountTypeError")
+            }
+            ApiError::UpsertItemMetadataError(ref err) => {
+                handle_pg_error(err, "UpsertItemMetadataError")
+            }
             ApiError::DeleteGroupMemberError(ref err) => {
                 handle_pg_error(err, "DeleteGroupMemberError")
             }

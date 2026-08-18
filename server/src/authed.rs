@@ -2,9 +2,13 @@ use crate::auth_middleware::Authenticated;
 use crate::db;
 use crate::error::ApiError;
 use crate::models::{
-    AmIInGroupRequest, GroupMember, GroupSkillData, RenameGroupMember, SHARED_MEMBER,
+    AmIInGroupRequest, ClueCompletion, DeathEvent, GroupMember, GroupSkillData,
+    RenameGroupMember, SlayerTaskCompletion, SHARED_MEMBER,
 };
-use crate::validators::{valid_name, validate_member_prop_length, ArrayFormat};
+use crate::validators::{
+    valid_name, validate_member_prop_length, validate_optional_string_length,
+    validate_string_length, ArrayFormat,
+};
 use actix_web::{delete, get, post, put, web, Error, HttpResponse};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Pool};
@@ -188,11 +192,102 @@ pub async fn update_group_member(
         400,
         ArrayFormat::ItemPairs,
     )?;
+    validate_member_prop_length(
+        "combat_achievements",
+        &group_member_inner.combat_achievements,
+        6,
+        6,
+        ArrayFormat::Flat,
+    )?;
+    validate_member_prop_length(
+        "farming_patches",
+        &group_member_inner.farming_patches,
+        0,
+        20,
+        ArrayFormat::Flat,
+    )?;
+    if let Some(slayer_task) = &group_member_inner.slayer_task {
+        validate_string_length("slayer_task.task", &slayer_task.task, 100)?;
+        validate_optional_string_length("slayer_task.master", &slayer_task.master, 50)?;
+    }
 
     match sender.send(group_member_inner).await {
         Ok(_) => Ok(HttpResponse::Ok().finish()),
         Err(_) => Ok(HttpResponse::InternalServerError().body("Failed to submit player update")),
     }
+}
+
+#[post("/slayer-task-completed")]
+pub async fn slayer_task_completed(
+    auth: Authenticated,
+    body: web::Json<SlayerTaskCompletion>,
+    db_pool: web::Data<Pool>,
+) -> Result<HttpResponse, Error> {
+    if body.name.eq(SHARED_MEMBER) {
+        return Ok(
+            HttpResponse::BadRequest().body(format!("Member name {} not allowed", SHARED_MEMBER))
+        );
+    }
+    validate_string_length("task", &body.task, 100)?;
+    validate_optional_string_length("master", &body.master, 50)?;
+
+    let client: Client = db_pool.get().await.map_err(ApiError::PoolError)?;
+    let member_id = db::get_member_id(&client, auth.group_id, &body.name).await?;
+    db::record_slayer_task_completion(
+        &client,
+        member_id,
+        &body.task,
+        body.master.as_deref(),
+        body.amount_completed,
+        body.outcome.as_str(),
+    )
+    .await?;
+    Ok(HttpResponse::Created().finish())
+}
+
+#[post("/clue-completed")]
+pub async fn clue_completed(
+    auth: Authenticated,
+    body: web::Json<ClueCompletion>,
+    db_pool: web::Data<Pool>,
+) -> Result<HttpResponse, Error> {
+    if body.name.eq(SHARED_MEMBER) {
+        return Ok(
+            HttpResponse::BadRequest().body(format!("Member name {} not allowed", SHARED_MEMBER))
+        );
+    }
+
+    let client: Client = db_pool.get().await.map_err(ApiError::PoolError)?;
+    let member_id = db::get_member_id(&client, auth.group_id, &body.name).await?;
+    db::record_clue_completion(&client, member_id, body.tier.as_str()).await?;
+    Ok(HttpResponse::Created().finish())
+}
+
+#[post("/death")]
+pub async fn death(
+    auth: Authenticated,
+    body: web::Json<DeathEvent>,
+    db_pool: web::Data<Pool>,
+) -> Result<HttpResponse, Error> {
+    if body.name.eq(SHARED_MEMBER) {
+        return Ok(
+            HttpResponse::BadRequest().body(format!("Member name {} not allowed", SHARED_MEMBER))
+        );
+    }
+    validate_optional_string_length("killer", &body.killer, 100)?;
+
+    let client: Client = db_pool.get().await.map_err(ApiError::PoolError)?;
+    let member_id = db::get_member_id(&client, auth.group_id, &body.name).await?;
+    db::record_death(
+        &client,
+        member_id,
+        body.world_x,
+        body.world_y,
+        body.plane,
+        body.killer.as_deref(),
+    )
+    .await?;
+    Ok(HttpResponse::Created().finish())
 }
 
 #[derive(Deserialize)]

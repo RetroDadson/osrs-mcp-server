@@ -50,7 +50,7 @@ impl AuthenticationCache {
         }
     }
 
-    fn get(&self, group_name: &str, token_hash: &str) -> Option<i64> {
+    pub(crate) fn get(&self, group_name: &str, token_hash: &str) -> Option<i64> {
         let inner = self.inner.read().ok()?;
         let key = AuthenticationCacheKey {
             group_name: group_name.to_owned(),
@@ -63,7 +63,7 @@ impl AuthenticationCache {
             .map(|entry| entry.group_id)
     }
 
-    fn insert(&self, group_name: &str, token_hash: String, group_id: i64) {
+    pub(crate) fn insert(&self, group_name: &str, token_hash: String, group_id: i64) {
         let Ok(mut inner) = self.inner.write() else {
             return;
         };

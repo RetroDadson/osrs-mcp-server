@@ -1,14 +1,9 @@
 import { pubsub } from "./pubsub";
-import { utility } from "../utility";
-import { groupData } from "./group-data";
-import { exampleData } from "./example-data";
 
 class Api {
   constructor() {
     this.baseUrl = "/api";
     this.createGroupUrl = `${this.baseUrl}/create-group`;
-    this.exampleDataEnabled = false;
-    this.enabled = false;
   }
 
   get getGroupDataUrl() {
@@ -31,14 +26,6 @@ class Api {
     return `${this.baseUrl}/group/${this.groupName}/am-i-logged-in`;
   }
 
-  get gePricesUrl() {
-    return `${this.baseUrl}/ge-prices`;
-  }
-
-  get skillDataUrl() {
-    return `${this.baseUrl}/group/${this.groupName}/get-skill-data`;
-  }
-
   get captchaEnabledUrl() {
     return `${this.baseUrl}/captcha-enabled`;
   }
@@ -48,68 +35,34 @@ class Api {
     this.groupToken = groupToken;
   }
 
-  async restart() {
-    const groupName = this.groupName;
-    const groupToken = this.groupToken;
-    await this.enable(groupName, groupToken);
-  }
-
-  async enable(groupName, groupToken) {
-    await this.disable();
-    this.nextCheck = new Date(0).toISOString();
-    this.setCredentials(groupName, groupToken);
-
-    if (!this.enabled) {
-      this.enabled = true;
-      // getGroupInterval is a Promise so we can make sure this method does not leak
-      // any intervals with multiple calls to .enable(). This could be possible because of
-      // the wait for the item and quest data loads before we create the interval.
-      this.getGroupInterval = pubsub.waitForAllEvents("item-data-loaded", "quest-data-loaded").then(() => {
-        return utility.callOnInterval(this.getGroupData.bind(this), 1000);
-      });
-    }
-
-    await this.getGroupInterval;
-  }
-
-  async disable() {
-    this.enabled = false;
+  disable() {
     this.groupName = undefined;
     this.groupToken = undefined;
-    groupData.members = new Map();
-    groupData.groupItems = {};
-    groupData.filters = [""];
-    if (this.getGroupInterval) {
-      window.clearInterval(await this.getGroupInterval);
-    }
   }
 
-  async getGroupData() {
-    const nextCheck = this.nextCheck;
+  // One-shot fetch of the group's current member names, publishing "members-updated" for
+  // group-settings to render. Not a live/polling subscription - membership doesn't need
+  // real-time updates the way the old dashboard's per-tick player data did.
+  async refreshMembers() {
+    const response = await fetch(`${this.getGroupDataUrl}?from_time=${new Date(0).toISOString()}`, {
+      headers: {
+        Authorization: this.groupToken,
+      },
+    });
 
-    if (this.exampleDataEnabled) {
-      const newGroupData = exampleData.getGroupData();
-      groupData.update(newGroupData);
-      pubsub.publish("get-group-data", groupData);
-    } else {
-      const response = await fetch(`${this.getGroupDataUrl}?from_time=${nextCheck}`, {
-        headers: {
-          Authorization: this.groupToken,
-        },
-      });
-      if (!response.ok) {
-        if (response.status === 401) {
-          await this.disable();
-          window.history.pushState("", "", "/login");
-          pubsub.publish("get-group-data");
-        }
-        return;
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.disable();
+        window.history.pushState("", "", "/login");
       }
-
-      const newGroupData = await response.json();
-      this.nextCheck = groupData.update(newGroupData).toISOString();
-      pubsub.publish("get-group-data", groupData);
+      return;
     }
+
+    const members = await response.json();
+    pubsub.publish(
+      "members-updated",
+      members.map((member) => ({ name: member.name }))
+    );
   }
 
   async createGroup(groupName, memberNames, captchaResponse) {
@@ -169,25 +122,6 @@ class Api {
     });
 
     return response;
-  }
-
-  async getGePrices() {
-    const response = await fetch(this.gePricesUrl);
-    return response;
-  }
-
-  async getSkillData(period) {
-    if (this.exampleDataEnabled) {
-      const skillData = exampleData.getSkillData(period, groupData);
-      return skillData;
-    } else {
-      const response = await fetch(`${this.skillDataUrl}?period=${period}`, {
-        headers: {
-          Authorization: this.groupToken,
-        },
-      });
-      return response.json();
-    }
   }
 
   async getCaptchaEnabled() {

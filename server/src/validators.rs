@@ -67,6 +67,49 @@ mod valid_name_tests {
     }
 }
 
+#[cfg(test)]
+mod string_length_tests {
+    use super::*;
+
+    #[test]
+    fn within_bounds_ok() {
+        assert!(validate_string_length("task", "Abyssal demons", 100).is_ok());
+    }
+
+    #[test]
+    fn exact_max_ok() {
+        assert!(validate_string_length("task", "12345", 5).is_ok());
+    }
+
+    #[test]
+    fn exceeds_max_errors() {
+        let result = validate_string_length("task", "123456", 5);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn empty_string_ok() {
+        assert!(validate_string_length("task", "", 5).is_ok());
+    }
+
+    #[test]
+    fn optional_none_ok() {
+        assert!(validate_optional_string_length("master", &None, 5).is_ok());
+    }
+
+    #[test]
+    fn optional_some_within_bounds_ok() {
+        assert!(validate_optional_string_length("master", &Some("Duradel".to_string()), 50).is_ok());
+    }
+
+    #[test]
+    fn optional_some_exceeds_max_errors() {
+        let result =
+            validate_optional_string_length("master", &Some("x".repeat(51)), 50);
+        assert!(result.is_err());
+    }
+}
+
 static NAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("[^A-Za-z 0-9-_]").unwrap());
 
 pub fn valid_name(name: &str) -> bool {
@@ -77,6 +120,29 @@ pub fn valid_name(name: &str) -> bool {
 pub enum ArrayFormat {
     Flat,
     ItemPairs,
+}
+
+pub fn validate_string_length(prop_name: &str, value: &str, max_len: usize) -> Result<(), ApiError> {
+    if value.len() > max_len {
+        return Err(ApiError::GroupMemberValidationError(format!(
+            "{} length {} exceeds max {}",
+            prop_name,
+            value.len(),
+            max_len
+        )));
+    }
+    Ok(())
+}
+
+pub fn validate_optional_string_length(
+    prop_name: &str,
+    value: &Option<String>,
+    max_len: usize,
+) -> Result<(), ApiError> {
+    match value {
+        Some(s) => validate_string_length(prop_name, s, max_len),
+        None => Ok(()),
+    }
 }
 
 pub fn validate_member_prop_length<T>(

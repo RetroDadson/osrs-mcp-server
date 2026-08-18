@@ -1,18 +1,19 @@
 version: "3.8"
 services:
-  group-ironmen-tracker-frontend:
-    image: chrisleeeee/group-ironmen-tracker-frontend
+  osrs-mcp-frontend:
+    build:
+      context: ./site
+      dockerfile: Dockerfile
     environment:
       - HOST_URL=${HOST_URL}
     restart: always
-    container_name: group-ironmen-tracker-frontend
+    container_name: osrs-mcp-frontend
     ports:
       - 4000:4000 # replace this if using a docker-compatible reverse proxy like traefik
-  group-ironmen-tracker-backend:
-    # build:
-      # context: ./server
-      # dockerfile: Dockerfile
-    image: chrisleeeee/group-ironmen-tracker-backend
+  osrs-mcp-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
     environment:
       - PG_USER=${PG_USER}
       - PG_PASSWORD=${PG_PASSWORD}
@@ -23,13 +24,13 @@ services:
     restart: always
     depends_on:
       - "postgres"
-    container_name: group-ironmen-tracker-backend
+    container_name: osrs-mcp-backend
     ports:
       - 5000:8080  # replace this if using a docker-compatible reverse proxy like traefik
   postgres:
     image: postgres
     restart: always
-    container_name: group-ironmen-tracker-postgres
+    container_name: osrs-mcp-postgres
     environment:
       POSTGRES_USER: ${PG_USER}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
