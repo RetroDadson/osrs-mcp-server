@@ -2,7 +2,7 @@
 
 Source for plugin: [github.com/RetroDadson/osrs-mcp-tracker-plugin](https://github.com/RetroDadson/osrs-mcp-tracker-plugin)
 
-This repo is the backend and account/token-management website for the plugin above. It stores OSRS player data reported by the plugin and exposes it through an [MCP](https://modelcontextprotocol.io/) server, so an AI assistant (e.g. Claude) can query it directly. It works for solo accounts and groups alike, and for every OSRS account type (regular, Ironman, Hardcore Ironman, Ultimate Ironman, Group Ironman).
+This repo is the backend and login/token-management website for the plugin above. It stores OSRS player data reported by the plugin and exposes it through an [MCP](https://modelcontextprotocol.io/) server, so an AI assistant (e.g. Claude) can query it directly. It's built individual-first — sign up with just your own OSRS name — but a login can share tracking across a few people too, and it works for every OSRS account type (regular, Ironman, Hardcore Ironman, Ultimate Ironman, Group Ironman).
 
 Originally forked from [group-ironmen](https://github.com/christoabrown/group-ironmen) — thanks to the original author for the excellent groundwork this project builds on. The server was later rewritten from Rust onto a TypeScript stack (the Rust implementation is preserved on the `rust-server-archive` branch for reference).
 
@@ -22,10 +22,10 @@ Tracks:
 A single npm-workspaces monorepo:
 
 * `apps/server` — Fastify REST API + MCP server (`@modelcontextprotocol/sdk`, Streamable HTTP transport) + background jobs (GE prices, skills aggregation, OSRS Hiscores polling, item metadata sync), backed by PostgreSQL via [Kysely](https://kysely.dev/).
-* `apps/client` — React token-management website (create a group, log in, manage members, appearance settings). No data-viewing dashboard — that's what the MCP server is for.
+* `apps/client` — React login/token-management website (sign up with your OSRS name, log in, manage members, appearance settings). No data-viewing dashboard — that's what the MCP server is for.
 * `packages/shared` — Zod schemas, TypeScript types, and validators shared between client and server.
 
-`apps/server` serves the REST API (`/api/*`), the MCP server (`/mcp/:groupName`), and the built `apps/client` static site all from one process/port — one deployable, no reverse-proxying between separate frontend/backend containers.
+`apps/server` serves the REST API (`/api/*`), the MCP server (`/mcp/:loginName`), and the built `apps/client` static site all from one process/port — one deployable, no reverse-proxying between separate frontend/backend containers.
 
 ## Self-hosting
 
@@ -34,7 +34,7 @@ A single npm-workspaces monorepo:
 Prerequisites: Docker, docker-compose.
 
 1. Copy `docker-compose.yml` and `.env.example` onto your server.
-2. Copy `.env.example` to `.env` and fill in the values — the comments in the file explain each one. At minimum you need `PG_USER`/`PG_PASSWORD`/`PG_DB` and a random `AUTH_SECRET` (used to hash group tokens — treat it like a password; rotating it invalidates every existing group token).
+2. Copy `.env.example` to `.env` and fill in the values — the comments in the file explain each one. At minimum you need `PG_USER`/`PG_PASSWORD`/`PG_DB` and a random `AUTH_SECRET` (used to hash login tokens — treat it like a password; rotating it invalidates every existing login token).
 3. `docker-compose up -d --build`
 
 The app builds from source (`docker/Dockerfile`, context `.`) since no image is published yet. It listens on port `8080` by default (change the `ports` mapping in `docker-compose.yml` if you want a different host port). The database schema is created automatically on first boot — no manual `schema.sql` step needed.
