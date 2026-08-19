@@ -1,34 +1,27 @@
-version: "3.8"
 services:
-  osrs-mcp-frontend:
+  app:
     build:
-      context: ./site
-      dockerfile: Dockerfile
-    environment:
-      - HOST_URL=${HOST_URL}
-    restart: always
-    container_name: osrs-mcp-frontend
-    ports:
-      - 4000:4000 # replace this if using a docker-compatible reverse proxy like traefik
-  osrs-mcp-backend:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
     environment:
       - PG_USER=${PG_USER}
       - PG_PASSWORD=${PG_PASSWORD}
-      - PG_HOST=${PG_HOST}
-      - PG_PORT=${PG_PORT}
+      - PG_HOST=postgres
+      - PG_PORT=5432
       - PG_DB=${PG_DB}
-      - BACKEND_SECRET=${BACKEND_SECRET}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - HCAPTCHA_ENABLED=${HCAPTCHA_ENABLED:-false}
+      - HCAPTCHA_SITEKEY=${HCAPTCHA_SITEKEY:-}
+      - HCAPTCHA_SECRET=${HCAPTCHA_SECRET:-}
     restart: always
     depends_on:
-      - "postgres"
-    container_name: osrs-mcp-backend
+      - postgres
+    container_name: osrs-mcp-app
     ports:
-      - 5000:8080  # replace this if using a docker-compatible reverse proxy like traefik
+      - 8080:8080 # serves the REST API, the MCP server (/mcp/*), and the built frontend - replace if using a reverse proxy
   postgres:
-    image: postgres
+    image: postgres:16-alpine
     restart: always
     container_name: osrs-mcp-postgres
     environment:
@@ -36,5 +29,4 @@ services:
       POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: ${PG_DB}
     volumes:
-      - ./pg-data:/var/lib/postgresql/data # change the left-hand side of : to the path you prefer the DB to store the data in
-      - ./server/src/sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql # change the left-hand side of the : to the path that contains the schema.sql
+      - ./pg-data:/var/lib/postgresql/data # change the left-hand side of : to the path you prefer the DB to store data in
