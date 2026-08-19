@@ -40,7 +40,7 @@ async function processBatch(db: Kysely<Database>, buffer: readonly PendingUpdate
 }
 
 /**
- * Time-windowed micro-batcher: accumulates `update-group-member` writes for up to
+ * Time-windowed micro-batcher: accumulates `update-member` writes for up to
  * `BATCH_TIMEOUT_MS` (50ms) or until `BATCH_SIZE` (5000) items, whichever comes first, then
  * writes the whole batch in one pass (deduped, chunked, bulk-UPDATEd). `enqueue` never blocks on
  * the DB - callers get a fire-and-forget write, matching the REST route's immediate-200 contract.

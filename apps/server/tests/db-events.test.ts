@@ -20,14 +20,14 @@ describe('events', () => {
 
   beforeAll(async () => {
     testDb = await startTestDb();
-    const group = await testDb.db
-      .insertInto('groups')
-      .values({ group_name: 'eventstest', group_token_hash: 'h' })
-      .returning('group_id')
+    const login = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: 'eventstest', token_hash: 'h' })
+      .returning('login_id')
       .executeTakeFirstOrThrow();
     const member = await testDb.db
       .insertInto('members')
-      .values({ group_id: group.group_id, member_name: 'EventMember' })
+      .values({ login_id: login.login_id, member_name: 'EventMember' })
       .returning('member_id')
       .executeTakeFirstOrThrow();
     memberId = member.member_id;

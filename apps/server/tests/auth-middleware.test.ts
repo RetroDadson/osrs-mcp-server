@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AuthenticationCache, createMcpAuthPreHandler, createRestAuthPreHandler, tokenHash } from '../src/auth/index.js';
-import { createGroup } from '../src/db/groups.js';
+import { createLogin } from '../src/db/logins.js';
 import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
 
 const SECRET = 'integration-test-secret';
@@ -9,28 +9,28 @@ const SECRET = 'integration-test-secret';
 describe('auth preHandlers', () => {
   let testDb: TestDb;
   let app: FastifyInstance;
-  const groupName = 'authmwtest';
+  const loginName = 'authmwtest';
   const rawToken = 'the-real-token';
 
   beforeAll(async () => {
     testDb = await startTestDb();
-    await createGroup(testDb.db, {
-      name: groupName,
+    await createLogin(testDb.db, {
+      name: loginName,
       memberNames: ['alice'],
-      tokenHash: tokenHash(rawToken, groupName, SECRET),
+      tokenHash: tokenHash(rawToken, loginName, SECRET),
     });
 
     const deps = { db: testDb.db, cache: new AuthenticationCache(), secret: SECRET };
     app = Fastify();
     app.get(
-      '/api/group/:groupName/ping',
+      '/api/login/:loginName/ping',
       { preHandler: createRestAuthPreHandler(deps) },
-      async (request) => ({ groupId: request.groupId }),
+      async (request) => ({ loginId: request.loginId }),
     );
     app.get(
-      '/mcp/:groupName',
+      '/mcp/:loginName',
       { preHandler: createMcpAuthPreHandler(deps) },
-      async (request) => ({ groupId: request.groupId }),
+      async (request) => ({ loginId: request.loginId }),
     );
     await app.ready();
   }, 60_000);
@@ -41,52 +41,52 @@ describe('auth preHandlers', () => {
   });
 
   it('REST: 400 on a missing Authorization header', async () => {
-    const res = await app.inject({ method: 'GET', url: `/api/group/${groupName}/ping` });
+    const res = await app.inject({ method: 'GET', url: `/api/login/${loginName}/ping` });
     expect(res.statusCode).toBe(400);
   });
 
   it('REST: 401 on a wrong token', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/api/group/${groupName}/ping`,
+      url: `/api/login/${loginName}/ping`,
       headers: { authorization: 'wrong-token' },
     });
     expect(res.statusCode).toBe(401);
   });
 
-  it('REST: 200 with the correct token, and injects groupId', async () => {
+  it('REST: 200 with the correct token, and injects loginId', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/api/group/${groupName}/ping`,
+      url: `/api/login/${loginName}/ping`,
       headers: { authorization: rawToken },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().groupId).toBeDefined();
+    expect(res.json().loginId).toBeDefined();
   });
 
-  it('REST: 401 when the correct token is presented for the wrong group name', async () => {
+  it('REST: 401 when the correct token is presented for the wrong login name', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/api/group/some-other-group/ping`,
+      url: `/api/login/some-other-login/ping`,
       headers: { authorization: rawToken },
     });
     expect(res.statusCode).toBe(401);
   });
 
   it('MCP: 401 (not 400) on a missing Authorization header', async () => {
-    const res = await app.inject({ method: 'GET', url: `/mcp/${groupName}` });
+    const res = await app.inject({ method: 'GET', url: `/mcp/${loginName}` });
     expect(res.statusCode).toBe(401);
   });
 
   it('MCP: 401 on a wrong token', async () => {
-    const res = await app.inject({ method: 'GET', url: `/mcp/${groupName}`, headers: { authorization: 'nope' } });
+    const res = await app.inject({ method: 'GET', url: `/mcp/${loginName}`, headers: { authorization: 'nope' } });
     expect(res.statusCode).toBe(401);
   });
 
   it('MCP: 200 with the correct token', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/mcp/${groupName}`,
+      url: `/mcp/${loginName}`,
       headers: { authorization: rawToken },
     });
     expect(res.statusCode).toBe(200);

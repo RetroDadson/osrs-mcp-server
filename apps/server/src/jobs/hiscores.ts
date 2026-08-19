@@ -1,7 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.js';
 import { updateAccountType, upsertHiscoreActivity } from '../db/events.js';
-import type { MemberRef } from '../db/groups.js';
+import type { MemberRef } from '../db/logins.js';
 import { fetchWithTimeout } from '../http.js';
 import { USER_AGENT } from './user-agent.js';
 

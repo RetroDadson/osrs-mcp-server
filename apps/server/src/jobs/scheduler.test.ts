@@ -4,7 +4,7 @@ vi.mock('./ge-prices.js', () => ({ fetchGePrices: vi.fn().mockResolvedValue({ 1:
 vi.mock('./hiscores.js', () => ({ syncMemberHiscores: vi.fn().mockResolvedValue(true) }));
 vi.mock('./item-metadata.js', () => ({ syncItemMetadata: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../db/skills.js', () => ({ aggregateSkills: vi.fn().mockResolvedValue(undefined), applySkillsRetention: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('../db/groups.js', () => ({ listAllMembers: vi.fn().mockResolvedValue([{ memberId: '1', memberName: 'alice' }]) }));
+vi.mock('../db/logins.js', () => ({ listAllMembers: vi.fn().mockResolvedValue([{ memberId: '1', memberName: 'alice' }]) }));
 vi.mock('../routes/ge-price-cache.js', () => ({ setGePrices: vi.fn() }));
 
 const { fetchGePrices } = await import('./ge-prices.js');

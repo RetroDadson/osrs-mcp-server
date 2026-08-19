@@ -1,22 +1,22 @@
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { aggregateSkills, applySkillsRetention, getSkillsForPeriod } from '../src/db/skills.js';
-import { createGroup, getGroupIdByToken } from '../src/db/groups.js';
+import { createLogin, getLoginIdByToken } from '../src/db/logins.js';
 import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
 
 describe('skills aggregation and retention', () => {
   let testDb: TestDb;
-  let groupId: string;
+  let loginId: string;
   let memberId: string;
 
   beforeAll(async () => {
     testDb = await startTestDb();
-    await createGroup(testDb.db, { name: 'skillstest', memberNames: ['skiller'], tokenHash: 'h' });
-    groupId = (await getGroupIdByToken(testDb.db, 'skillstest', 'h'))!;
+    await createLogin(testDb.db, { name: 'skillstest', memberNames: ['skiller'], tokenHash: 'h' });
+    loginId = (await getLoginIdByToken(testDb.db, 'skillstest', 'h'))!;
     const member = await testDb.db
       .selectFrom('members')
       .select('member_id')
-      .where('group_id', '=', groupId)
+      .where('login_id', '=', loginId)
       .where('member_name', '=', 'skiller')
       .executeTakeFirstOrThrow();
     memberId = member.member_id;
@@ -68,8 +68,8 @@ describe('skills aggregation and retention', () => {
     expect(info.last_aggregation.getTime()).toBeGreaterThan(0);
   });
 
-  it('getSkillsForPeriod groups rows by member name within the group', async () => {
-    const dayData = await getSkillsForPeriod(testDb.db, groupId, 'skills_day');
+  it('getSkillsForPeriod groups rows by member name within the login', async () => {
+    const dayData = await getSkillsForPeriod(testDb.db, loginId, 'skills_day');
     const skiller = dayData.find((m) => m.name === 'skiller');
     expect(skiller).toBeDefined();
     expect(skiller!.skill_data.length).toBeGreaterThanOrEqual(1);

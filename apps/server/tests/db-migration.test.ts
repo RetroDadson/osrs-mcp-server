@@ -25,9 +25,9 @@ describe('baseline migration', () => {
       'aggregation_info',
       'clue_completions',
       'deaths',
-      'groups',
       'hiscore_activities',
       'item_metadata',
+      'logins',
       'members',
       'skills_day',
       'skills_month',
@@ -50,18 +50,18 @@ describe('baseline migration', () => {
   });
 
   it('treats member_name as case-insensitive (citext)', async () => {
-    const group = await testDb.db
-      .insertInto('groups')
-      .values({ group_name: 'citext-test', group_token_hash: 'hash' })
-      .returning('group_id')
+    const login = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: 'citext-test', token_hash: 'hash' })
+      .returning('login_id')
       .executeTakeFirstOrThrow();
 
-    await testDb.db.insertInto('members').values({ group_id: group.group_id, member_name: 'Zezima' }).execute();
+    await testDb.db.insertInto('members').values({ login_id: login.login_id, member_name: 'Zezima' }).execute();
 
     const found = await testDb.db
       .selectFrom('members')
       .selectAll()
-      .where('group_id', '=', group.group_id)
+      .where('login_id', '=', login.login_id)
       .where('member_name', '=', 'ZEZIMA')
       .executeTakeFirst();
 
@@ -70,10 +70,10 @@ describe('baseline migration', () => {
   });
 
   it('round-trips a jsonb slayer_task snapshot', async () => {
-    const group = await testDb.db
-      .insertInto('groups')
-      .values({ group_name: 'jsonb-test', group_token_hash: 'hash' })
-      .returning('group_id')
+    const login = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: 'jsonb-test', token_hash: 'hash' })
+      .returning('login_id')
       .executeTakeFirstOrThrow();
 
     const slayerTask = {
@@ -87,26 +87,26 @@ describe('baseline migration', () => {
 
     await testDb.db
       .insertInto('members')
-      .values({ group_id: group.group_id, member_name: 'JsonbMember', slayer_task: slayerTask })
+      .values({ login_id: login.login_id, member_name: 'JsonbMember', slayer_task: slayerTask })
       .execute();
 
     const found = await testDb.db
       .selectFrom('members')
       .select('slayer_task')
-      .where('group_id', '=', group.group_id)
+      .where('login_id', '=', login.login_id)
       .executeTakeFirstOrThrow();
 
     expect(found.slayer_task).toEqual(slayerTask);
   });
 
   it('returns bigserial ids as strings (safe for int8 precision)', async () => {
-    const group = await testDb.db
-      .insertInto('groups')
-      .values({ group_name: 'bigint-test', group_token_hash: 'hash' })
-      .returning('group_id')
+    const login = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: 'bigint-test', token_hash: 'hash' })
+      .returning('login_id')
       .executeTakeFirstOrThrow();
 
-    expect(typeof group.group_id).toBe('string');
+    expect(typeof login.login_id).toBe('string');
   });
 
   it.each([
@@ -123,17 +123,17 @@ describe('baseline migration', () => {
     'potion_storage',
     'combat_achievements',
   ] as const)('stamps %s_last_update only when %s actually changes', async (column) => {
-    const group = await testDb.db
-      .insertInto('groups')
-      .values({ group_name: `trigger-test-${column}`, group_token_hash: 'hash' })
-      .returning('group_id')
+    const login = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: `trigger-test-${column}`, token_hash: 'hash' })
+      .returning('login_id')
       .executeTakeFirstOrThrow();
 
     // The trigger only fires on UPDATE (matching the batcher's real write path - members are
     // created bare, then populated), so *_last_update starts NULL right after INSERT.
     const inserted = await testDb.db
       .insertInto('members')
-      .values({ group_id: group.group_id, member_name: 'TriggerMember' })
+      .values({ login_id: login.login_id, member_name: 'TriggerMember' })
       .returning('member_id')
       .executeTakeFirstOrThrow();
 

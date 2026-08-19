@@ -44,28 +44,28 @@ export const SlayerTaskSchema = z
   .strict();
 export type SlayerTask = z.infer<typeof SlayerTaskSchema>;
 
-export const RenameGroupMemberSchema = z
+export const RenameMemberSchema = z
   .object({
     original_name: z.string(),
     new_name: z.string(),
   })
   .strict();
-export type RenameGroupMember = z.infer<typeof RenameGroupMemberSchema>;
+export type RenameMember = z.infer<typeof RenameMemberSchema>;
 
-export const AmIInGroupQuerySchema = z
+export const AmIAMemberQuerySchema = z
   .object({
     member_name: z.string(),
   })
   .strict();
-export type AmIInGroupQuery = z.infer<typeof AmIInGroupQuerySchema>;
+export type AmIAMemberQuery = z.infer<typeof AmIAMemberQuerySchema>;
 
 /**
- * Partial update payload for `POST /api/group/:groupName/update-group-member`. Every field
+ * Partial update payload for `POST /api/login/:loginName/update-member`. Every field
  * except `name` is optional (a `null`/absent field means "unchanged", not "clear the value") -
  * mirrors the Rust `GroupMember` struct, which is deliberately NOT `deny_unknown_fields` since
  * the plugin client may send extra fields the server should just ignore.
  */
-export const GroupMemberUpdateSchema = z.object({
+export const MemberUpdateSchema = z.object({
   name: z.string(),
   stats: z.array(z.number().int()).optional(),
   coordinates: z.array(z.number().int()).optional(),
@@ -88,13 +88,13 @@ export const GroupMemberUpdateSchema = z.object({
   account_type: z.string().optional(),
   last_updated: z.iso.datetime({ offset: true }).optional(),
 });
-export type GroupMemberUpdate = z.infer<typeof GroupMemberUpdateSchema>;
+export type MemberUpdate = z.infer<typeof MemberUpdateSchema>;
 
-/** Full member record as returned by `get-group-data` / the MCP tools. */
-export const GroupMemberSchema = GroupMemberUpdateSchema.omit({ name: true }).extend({
+/** Full member record as returned by `get-data` / the MCP tools. */
+export const MemberSchema = MemberUpdateSchema.omit({ name: true }).extend({
   name: z.string(),
 });
-export type GroupMember = z.infer<typeof GroupMemberSchema>;
+export type Member = z.infer<typeof MemberSchema>;
 
 export const SlayerTaskCompletionSchema = z
   .object({
@@ -126,21 +126,21 @@ export const DeathEventSchema = z
   .strict();
 export type DeathEvent = z.infer<typeof DeathEventSchema>;
 
-export const CreateGroupRequestSchema = z
+export const CreateLoginRequestSchema = z
   .object({
-    name: z.string(),
+    login_name: z.string(),
     member_names: z.array(z.string()),
     captcha_response: z.string().optional().default(''),
   })
   .strict();
-export type CreateGroupRequest = z.infer<typeof CreateGroupRequestSchema>;
+export type CreateLoginRequest = z.infer<typeof CreateLoginRequestSchema>;
 
-export const CreateGroupResponseSchema = z.object({
-  name: z.string(),
+export const CreateLoginResponseSchema = z.object({
+  login_name: z.string(),
   member_names: z.array(z.string()),
   token: z.string(),
 });
-export type CreateGroupResponse = z.infer<typeof CreateGroupResponseSchema>;
+export type CreateLoginResponse = z.infer<typeof CreateLoginResponseSchema>;
 
 export const CaptchaConfigSchema = z.object({
   enabled: z.boolean(),
@@ -160,7 +160,7 @@ export const MemberSkillDataSchema = z.object({
 });
 export type MemberSkillData = z.infer<typeof MemberSkillDataSchema>;
 
-export type GroupSkillData = MemberSkillData[];
+export type LoginSkillData = MemberSkillData[];
 
 export const SkillDataPeriodSchema = z.enum(['Day', 'Week', 'Month', 'Year']);
 export type SkillDataPeriod = z.infer<typeof SkillDataPeriodSchema>;

@@ -38,12 +38,12 @@ export function mergeDeposited(older: number[] | undefined, newer: number[] | un
  * Last-non-null-wins per field (a `newer` field left `undefined` never clobbers an existing
  * `older` value - this is what prevents lost updates across partial-update messages in the same
  * batch window). `deposited` is the one exception: additively merged via `mergeDeposited`.
- * `groupId`/`name` are always taken from `newer` (identity fields, always equal within one
+ * `loginId`/`name` are always taken from `newer` (identity fields, always equal within one
  * dedup key anyway).
  */
-export function mergeGroupMember(older: PendingUpdate, newer: PendingUpdate): PendingUpdate {
+export function mergeMember(older: PendingUpdate, newer: PendingUpdate): PendingUpdate {
   return {
-    groupId: newer.groupId,
+    loginId: newer.loginId,
     name: newer.name,
     stats: newer.stats ?? older.stats,
     coordinates: newer.coordinates ?? older.coordinates,
@@ -68,7 +68,7 @@ export function mergeGroupMember(older: PendingUpdate, newer: PendingUpdate): Pe
 }
 
 /**
- * Merges same-`(groupId, name)` entries in received order, then sorts by `(groupId, name)` for
+ * Merges same-`(loginId, name)` entries in received order, then sorts by `(loginId, name)` for
  * deterministic lock ordering across concurrent chunk processing. The dedup key is an exact
  * string match on `name` (not case-normalized) - the DB's `citext` comparison is what makes two
  * differently-cased names for the same member still resolve to one row at the SQL layer.
@@ -76,21 +76,21 @@ export function mergeGroupMember(older: PendingUpdate, newer: PendingUpdate): Pe
 export function deduplicateBatch(items: PendingUpdate[]): PendingUpdate[] {
   const merged = new Map<string, PendingUpdate>();
   for (const item of items) {
-    const key = `${item.groupId}:${item.name}`;
+    const key = `${item.loginId}:${item.name}`;
     const existing = merged.get(key);
-    merged.set(key, existing ? mergeGroupMember(existing, item) : item);
+    merged.set(key, existing ? mergeMember(existing, item) : item);
   }
 
   return Array.from(merged.values()).sort((a, b) => {
-    if (a.groupId !== b.groupId) return a.groupId < b.groupId ? -1 : 1;
+    if (a.loginId !== b.loginId) return a.loginId < b.loginId ? -1 : 1;
     if (a.name === b.name) return 0;
     return a.name < b.name ? -1 : 1;
   });
 }
 
 /**
- * Picks the newest `sharedBank` snapshot per group (ties -> last-in-buffer wins). Deliberately
- * computed from the RAW pre-dedup buffer, not the deduplicated one: `mergeGroupMember`
+ * Picks the newest `sharedBank` snapshot per login (ties -> last-in-buffer wins). Deliberately
+ * computed from the RAW pre-dedup buffer, not the deduplicated one: `mergeMember`
  * independently overwrites `sharedBank` and `lastUpdated`, so a later *partial* update (no
  * `sharedBank`, but a newer `lastUpdated`) could otherwise make a stale `sharedBank` value
  * incorrectly "win" over a genuinely newer one from a different member's message.
@@ -101,15 +101,15 @@ export function coalesceSharedBankUpdates(members: readonly PendingUpdate[]): Ma
   for (const member of members) {
     if (member.sharedBank === undefined) continue;
     const lastUpdated = member.lastUpdated ?? '';
-    const current = best.get(member.groupId);
+    const current = best.get(member.loginId);
     if (!current || lastUpdated >= current.lastUpdated) {
-      best.set(member.groupId, { sharedBank: member.sharedBank, lastUpdated });
+      best.set(member.loginId, { sharedBank: member.sharedBank, lastUpdated });
     }
   }
 
   const result = new Map<string, number[]>();
-  for (const [groupId, entry] of best) {
-    result.set(groupId, entry.sharedBank);
+  for (const [loginId, entry] of best) {
+    result.set(loginId, entry.sharedBank);
   }
   return result;
 }

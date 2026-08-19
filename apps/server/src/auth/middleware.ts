@@ -1,15 +1,15 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { AuthDeps } from './resolve.js';
-import { resolveGroupId } from './resolve.js';
+import { resolveLoginId } from './resolve.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
-    groupId?: string;
+    loginId?: string;
   }
 }
 
-interface GroupNameParams {
-  groupName: string;
+interface LoginNameParams {
+  loginName: string;
 }
 
 function authorizationToken(request: FastifyRequest): string | undefined {
@@ -20,11 +20,11 @@ function authorizationToken(request: FastifyRequest): string | undefined {
 
 /**
  * REST auth preHandler: 400 on a missing/empty `Authorization` header, 401 once a header is
- * present but doesn't resolve to a real group. Mounted on every `/api/group/:groupName/*` route.
+ * present but doesn't resolve to a real login. Mounted on every `/api/login/:loginName/*` route.
  */
 export function createRestAuthPreHandler(deps: AuthDeps) {
   return async function restAuthPreHandler(
-    request: FastifyRequest<{ Params: GroupNameParams }>,
+    request: FastifyRequest<{ Params: LoginNameParams }>,
     reply: FastifyReply,
   ): Promise<void> {
     const token = authorizationToken(request);
@@ -33,23 +33,23 @@ export function createRestAuthPreHandler(deps: AuthDeps) {
       return;
     }
 
-    const groupId = await resolveGroupId(deps, request.params.groupName, token);
-    if (groupId === undefined) {
+    const loginId = await resolveLoginId(deps, request.params.loginName, token);
+    if (loginId === undefined) {
       await reply.code(401).send();
       return;
     }
 
-    request.groupId = groupId;
+    request.loginId = loginId;
   };
 }
 
 /**
  * MCP auth preHandler: 401 on a missing/empty header too (asymmetric with the REST 400 - this
- * mirrors the prior server's own REST/MCP split, not a bug). Mounted on `/mcp/:groupName`.
+ * mirrors the prior server's own REST/MCP split, not a bug). Mounted on `/mcp/:loginName`.
  */
 export function createMcpAuthPreHandler(deps: AuthDeps) {
   return async function mcpAuthPreHandler(
-    request: FastifyRequest<{ Params: GroupNameParams }>,
+    request: FastifyRequest<{ Params: LoginNameParams }>,
     reply: FastifyReply,
   ): Promise<void> {
     const token = authorizationToken(request);
@@ -58,12 +58,12 @@ export function createMcpAuthPreHandler(deps: AuthDeps) {
       return;
     }
 
-    const groupId = await resolveGroupId(deps, request.params.groupName, token);
-    if (groupId === undefined) {
+    const loginId = await resolveLoginId(deps, request.params.loginName, token);
+    if (loginId === undefined) {
       await reply.code(401).send();
       return;
     }
 
-    request.groupId = groupId;
+    request.loginId = loginId;
   };
 }

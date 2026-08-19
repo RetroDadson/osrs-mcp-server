@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
   ClueCompletionSchema,
-  CreateGroupRequestSchema,
+  CreateLoginRequestSchema,
   DeathEventSchema,
   FarmingPatchSchema,
-  GroupMemberUpdateSchema,
+  MemberUpdateSchema,
   InteractingSchema,
   SlayerTaskCompletionSchema,
   SlayerTaskSchema,
 } from './models.js';
 
-describe('GroupMemberUpdateSchema', () => {
+describe('MemberUpdateSchema', () => {
   it('accepts a payload with only name set (partial update)', () => {
-    const result = GroupMemberUpdateSchema.safeParse({ name: 'Zezima' });
+    const result = MemberUpdateSchema.safeParse({ name: 'Zezima' });
     expect(result.success).toBe(true);
   });
 
   it('accepts a full snapshot payload', () => {
-    const result = GroupMemberUpdateSchema.safeParse({
+    const result = MemberUpdateSchema.safeParse({
       name: 'Zezima',
       stats: [1, 2, 3, 4, 5, 6, 7],
       combat_achievements: [1, 2, 3, 4, 5, 6],
@@ -35,12 +35,12 @@ describe('GroupMemberUpdateSchema', () => {
   });
 
   it('does NOT deny unknown fields (the plugin client may send extra fields to ignore)', () => {
-    const result = GroupMemberUpdateSchema.safeParse({ name: 'Zezima', some_future_field: 123 });
+    const result = MemberUpdateSchema.safeParse({ name: 'Zezima', some_future_field: 123 });
     expect(result.success).toBe(true);
   });
 
   it('requires name', () => {
-    expect(GroupMemberUpdateSchema.safeParse({ stats: [1] }).success).toBe(false);
+    expect(MemberUpdateSchema.safeParse({ stats: [1] }).success).toBe(false);
   });
 });
 
@@ -127,15 +127,15 @@ describe('DeathEventSchema', () => {
   });
 });
 
-describe('CreateGroupRequestSchema', () => {
+describe('CreateLoginRequestSchema', () => {
   it('defaults captcha_response to an empty string', () => {
-    const result = CreateGroupRequestSchema.parse({ name: 'my-group', member_names: ['a', 'b'] });
+    const result = CreateLoginRequestSchema.parse({ login_name: 'my-login', member_names: ['a', 'b'] });
     expect(result.captcha_response).toBe('');
   });
 
   it('rejects unknown fields (e.g. a client-supplied token)', () => {
-    const result = CreateGroupRequestSchema.safeParse({
-      name: 'my-group',
+    const result = CreateLoginRequestSchema.safeParse({
+      login_name: 'my-login',
       member_names: ['a'],
       token: 'client-supplied',
     });

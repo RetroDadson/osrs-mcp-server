@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ClueTotalsArgsSchema,
-  GroupMemberSummarySchema,
+  MemberSummarySchema,
   HistoryArgsSchema,
   ItemsArgsSchema,
   KillCountArgsSchema,
@@ -9,8 +9,8 @@ import {
 } from './mcp-tool-args.js';
 
 describe('MemberArgsSchema', () => {
-  it('requires member_name', () => {
-    expect(MemberArgsSchema.safeParse({}).success).toBe(false);
+  it('makes member_name optional (auto-defaults when a login has one member)', () => {
+    expect(MemberArgsSchema.safeParse({}).success).toBe(true);
     expect(MemberArgsSchema.safeParse({ member_name: 'Zezima' }).success).toBe(true);
   });
 });
@@ -46,9 +46,9 @@ describe('ClueTotalsArgsSchema and KillCountArgsSchema', () => {
   });
 });
 
-describe('GroupMemberSummarySchema', () => {
+describe('MemberSummarySchema', () => {
   it('allows account_type to be null (not yet detected)', () => {
-    const result = GroupMemberSummarySchema.safeParse({ name: 'Zezima', account_type: null });
+    const result = MemberSummarySchema.safeParse({ name: 'Zezima', account_type: null });
     expect(result.success).toBe(true);
   });
 });

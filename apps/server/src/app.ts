@@ -5,7 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { createRestAuthPreHandler } from './auth/index.js';
-import { GroupFullError } from './db/groups.js';
+import { LoginFullError } from './db/logins.js';
 import { registerMcpRoute } from './mcp/index.js';
 import { registerAuthedRoutes, registerUnauthedRoutes, type RouteDeps } from './routes/index.js';
 
@@ -31,7 +31,7 @@ export async function buildApp(deps: RouteDeps): Promise<FastifyInstance> {
   // wires an error handler into a child context if it existed at the time that child was
   // registered, not lazily at `ready()` time.
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof GroupFullError) {
+    if (error instanceof LoginFullError) {
       reply.code(400).send({ message: error.message });
       return;
     }

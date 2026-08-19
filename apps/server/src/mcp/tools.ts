@@ -10,7 +10,7 @@ import {
   SKILL_NAMES,
 } from '@osrs-mcp/shared';
 import { getClueCompletions, getDeaths, getHiscoreActivities, getSlayerTaskHistory } from '../db/events.js';
-import { listGroupMembers } from '../db/groups.js';
+import { listMembers } from '../db/logins.js';
 import type { ToolContext } from './context.js';
 import { EQUIPMENT_SLOT_NAMES, fetchMember, resolveFlatItems, resolveMemberId } from './resolve.js';
 
@@ -23,13 +23,13 @@ function jsonResult(data: unknown): CallToolResult {
 
 export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
-    'list_group_members',
+    'list_members',
     {
       description:
-        'Lists every real member of this group (excluding the internal shared-bank placeholder) along with their detected OSRS account type. Call this first to discover valid member_name values for every other tool.',
+        'Lists every real member of this login (excluding the internal shared-bank placeholder) along with their detected OSRS account type. Only needed when this login has more than one member - solo logins don\'t need to call this first, every other tool defaults member_name automatically.',
     },
     async () => {
-      const members = await listGroupMembers(ctx.db, ctx.groupId);
+      const members = await listMembers(ctx.db, ctx.loginId);
       return jsonResult(members.map((m) => ({ name: m.name, account_type: m.accountType })));
     },
   );
@@ -37,7 +37,8 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_member_status',
     {
-      description: "Current snapshot of what a member is doing right now: stats, location, current interaction target, account type, and active Slayer task.",
+      description:
+        "Current snapshot of what a member is doing right now: stats, location, current interaction target, account type, and active Slayer task. Omit member_name if this login only has one member.",
       inputSchema: MemberArgsSchema.shape,
     },
     async ({ member_name }) => {
@@ -58,7 +59,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_items',
     {
       description:
-        'Resolves a member\'s items in a given container (inventory, bank, equipment, seed_vault, or shared_bank) to item names, quantities, and alch values. Equipment entries are labeled with their slot name.',
+        'Resolves a member\'s items in a given container (inventory, bank, equipment, seed_vault, or shared_bank) to item names, quantities, and alch values. Equipment entries are labeled with their slot name. Omit member_name if this login only has one member.',
       inputSchema: ItemsArgsSchema.shape,
     },
     async ({ member_name, container }) => {
@@ -85,7 +86,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_skills',
     {
-      description: "Member's current skill levels/XP, keyed by skill name.",
+      description: "Member's current skill levels/XP, keyed by skill name. Omit member_name if this login only has one member.",
       inputSchema: MemberArgsSchema.shape,
     },
     async ({ member_name }) => {
@@ -103,7 +104,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_quests',
     {
-      description: 'Raw quest-state byte array for a member. Not decoded into quest names/stages.',
+      description: 'Raw quest-state byte array for a member. Not decoded into quest names/stages. Omit member_name if this login only has one member.',
       inputSchema: MemberArgsSchema.shape,
     },
     async ({ member_name }) => jsonResult((await fetchMember(ctx, member_name)).quests ?? null),
@@ -112,7 +113,8 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_slayer_task',
     {
-      description: "Member's current Slayer task snapshot (task name, master, progress, points, streaks), or null if none active.",
+      description:
+        "Member's current Slayer task snapshot (task name, master, progress, points, streaks), or null if none active. Omit member_name if this login only has one member.",
       inputSchema: MemberArgsSchema.shape,
     },
     async ({ member_name }) => jsonResult((await fetchMember(ctx, member_name)).slayer_task ?? null),
@@ -122,7 +124,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_slayer_history',
     {
       description:
-        'Completed Slayer tasks, most recent first. Only covers tasks completed while the plugin was connected - a gap in coverage during downtime is possible.',
+        'Completed Slayer tasks, most recent first. Only covers tasks completed while the plugin was connected - a gap in coverage during downtime is possible. Omit member_name if this login only has one member.',
       inputSchema: HistoryArgsSchema.shape,
     },
     async ({ member_name, limit }) => {
@@ -136,7 +138,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_kill_counts',
     {
       description:
-        "Boss/activity kill counts from the OSRS Hiscores (authoritative, but bosses only rank after 5 kills - expect 0 until then). Excludes clue scroll counts; use get_clue_totals for those.",
+        "Boss/activity kill counts from the OSRS Hiscores (authoritative, but bosses only rank after 5 kills - expect 0 until then). Excludes clue scroll counts; use get_clue_totals for those. Omit member_name if this login only has one member.",
       inputSchema: KillCountArgsSchema.shape,
     },
     async ({ member_name, boss }) => {
@@ -155,7 +157,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_combat_achievements',
     {
-      description: 'Combat Achievement tier-completion counts: [easy, medium, hard, elite, master, grandmaster].',
+      description: 'Combat Achievement tier-completion counts: [easy, medium, hard, elite, master, grandmaster]. Omit member_name if this login only has one member.',
       inputSchema: MemberArgsSchema.shape,
     },
     async ({ member_name }) => jsonResult((await fetchMember(ctx, member_name)).combat_achievements ?? null),
@@ -165,7 +167,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_clue_totals',
     {
       description:
-        'Clue scroll completion totals per tier from the OSRS Hiscores (authoritative, gap-resilient - reconciled independently of plugin uptime).',
+        'Clue scroll completion totals per tier from the OSRS Hiscores (authoritative, gap-resilient - reconciled independently of plugin uptime). Omit member_name if this login only has one member.',
       inputSchema: ClueTotalsArgsSchema.shape,
     },
     async ({ member_name, tier }) => {
@@ -185,7 +187,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_clue_completion_history',
     {
       description:
-        'Timestamped clue scroll completions, most recent first. Best-effort/plugin-uptime-gapped (unlike get_clue_totals) - use this for "when" questions, get_clue_totals for authoritative counts.',
+        'Timestamped clue scroll completions, most recent first. Best-effort/plugin-uptime-gapped (unlike get_clue_totals) - use this for "when" questions, get_clue_totals for authoritative counts. Omit member_name if this login only has one member.',
       inputSchema: HistoryArgsSchema.shape,
     },
     async ({ member_name, limit }) => {
@@ -198,7 +200,8 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_deaths',
     {
-      description: "Member's death log, most recent first. Best-effort only (no authoritative external source) - only captures deaths observed while the plugin was connected.",
+      description:
+        "Member's death log, most recent first. Best-effort only (no authoritative external source) - only captures deaths observed while the plugin was connected. Omit member_name if this login only has one member.",
       inputSchema: HistoryArgsSchema.shape,
     },
     async ({ member_name, limit }) => {
@@ -212,7 +215,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_farming_patches',
     {
       description:
-        "Member's tracked farming patch states. Only distinguishes empty vs. occupied (raw_value) - growth stage isn't decoded since it depends on crop type, which isn't tracked.",
+        "Member's tracked farming patch states. Only distinguishes empty vs. occupied (raw_value) - growth stage isn't decoded since it depends on crop type, which isn't tracked. Omit member_name if this login only has one member.",
       inputSchema: MemberArgsSchema.shape,
     },
     async ({ member_name }) => jsonResult((await fetchMember(ctx, member_name)).farming_patches ?? null),
@@ -221,7 +224,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_collection_log',
     {
-      description: "Member's collection log entries, resolved to item names.",
+      description: "Member's collection log entries, resolved to item names. Omit member_name if this login only has one member.",
       inputSchema: MemberArgsSchema.shape,
     },
     async ({ member_name }) => {
@@ -235,7 +238,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_achievement_diary_progress',
     {
-      description: 'Raw achievement diary progress values for a member. Not decoded into diary names/tiers.',
+      description: 'Raw achievement diary progress values for a member. Not decoded into diary names/tiers. Omit member_name if this login only has one member.',
       inputSchema: MemberArgsSchema.shape,
     },
     async ({ member_name }) => jsonResult((await fetchMember(ctx, member_name)).diary_vars ?? null),

@@ -1,10 +1,10 @@
 import { sql, type Kysely } from 'kysely';
-import type { FarmingPatch, GroupMember, Interacting, SlayerTask } from '@osrs-mcp/shared';
+import type { FarmingPatch, Member, Interacting, SlayerTask } from '@osrs-mcp/shared';
 import type { Database } from './types.js';
 
 /**
  * Every trigger-backed snapshot category. Mirrors `TRIGGERED_COLUMNS` in the baseline migration -
- * these are exactly the columns `getGroupData`'s incremental "only return what changed since
+ * these are exactly the columns `getLoginData`'s incremental "only return what changed since
  * timestamp X" projection gates on, and the set `GREATEST(...)` is computed over to produce
  * `last_updated`. `account_type` is intentionally excluded (see the migration's own note: its
  * timestamp is set explicitly by the hiscores poller, not trigger-driven).
@@ -28,7 +28,7 @@ const SNAPSHOT_COLUMNS = [
   'farming_patches',
 ] as const;
 
-interface GroupDataRow {
+interface LoginDataRow {
   member_name: string;
   last_updated: Date | null;
   stats: number[] | null;
@@ -53,14 +53,14 @@ interface GroupDataRow {
 /**
  * Only returns fields whose `*_last_update` is at/after `since` (bandwidth optimization the
  * plugin client uses for incremental polling; MCP tools instead always pass epoch to force a
- * full read). Includes the synthetic `@SHARED` member like the rest of the group - callers that
+ * full read). Includes the synthetic `@SHARED` member like the rest of the login - callers that
  * want the shared bank should look up that row's own `bank` field.
  *
  * `shared_bank` and `deposited` are always `undefined`: neither is stored per-member (shared
  * bank contents live on `@SHARED`'s own `bank` column; `deposited` is a write-only/ephemeral
  * batcher input, never read back).
  */
-export async function getGroupData(db: Kysely<Database>, groupId: string, since: Date): Promise<GroupMember[]> {
+export async function getLoginData(db: Kysely<Database>, loginId: string, since: Date): Promise<Member[]> {
   const greatestExpr = sql.join(
     SNAPSHOT_COLUMNS.map((c) => sql.ref(`${c}_last_update`)),
     sql`, `,
@@ -70,21 +70,21 @@ export async function getGroupData(db: Kysely<Database>, groupId: string, since:
       sql`CASE WHEN ${sql.ref(`${c}_last_update`)} >= ${since} THEN ${sql.ref(c)} ELSE NULL END AS ${sql.raw(c)}`,
   );
 
-  const query = sql<GroupDataRow>`
+  const query = sql<LoginDataRow>`
     SELECT
       member_name,
       GREATEST(${greatestExpr}) AS last_updated,
       ${sql.join(caseExprs, sql`, `)},
       account_type
     FROM osrsmcp.members
-    WHERE group_id = ${groupId}
+    WHERE login_id = ${loginId}
   `;
 
   const { rows } = await query.execute(db);
-  return rows.map(rowToGroupMember);
+  return rows.map(rowToMember);
 }
 
-function rowToGroupMember(row: GroupDataRow): GroupMember {
+function rowToMember(row: LoginDataRow): Member {
   return {
     name: row.member_name,
     stats: row.stats ?? undefined,

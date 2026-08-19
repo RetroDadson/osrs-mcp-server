@@ -1,10 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { SHARED_MEMBER } from '@osrs-mcp/shared';
 import { startBatcher, type BatcherHandle, type PendingUpdate } from '../src/batcher/index.js';
-import { createGroup, getGroupIdByToken } from '../src/db/groups.js';
+import { createLogin, getLoginIdByToken } from '../src/db/logins.js';
 import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
 
-const BLANK: Omit<PendingUpdate, 'groupId' | 'name'> = {
+const BLANK: Omit<PendingUpdate, 'loginId' | 'name'> = {
   stats: undefined,
   coordinates: undefined,
   skills: undefined,
@@ -26,14 +26,14 @@ const BLANK: Omit<PendingUpdate, 'groupId' | 'name'> = {
   lastUpdated: undefined,
 };
 
-function update(groupId: string, name: string, fields: Partial<PendingUpdate> = {}): PendingUpdate {
-  return { groupId, name, ...BLANK, ...fields };
+function update(loginId: string, name: string, fields: Partial<PendingUpdate> = {}): PendingUpdate {
+  return { loginId, name, ...BLANK, ...fields };
 }
 
 describe('update batcher (integration)', () => {
   let testDb: TestDb;
   let batcher: BatcherHandle;
-  let groupId: string;
+  let loginId: string;
 
   beforeAll(async () => {
     testDb = await startTestDb();
@@ -49,32 +49,32 @@ describe('update batcher (integration)', () => {
     await batcher.flush();
   });
 
-  async function createTestGroup(name: string, memberNames: string[]): Promise<string> {
-    await createGroup(testDb.db, { name, memberNames, tokenHash: `hash-${name}` });
-    return (await getGroupIdByToken(testDb.db, name, `hash-${name}`))!;
+  async function createTestLogin(name: string, memberNames: string[]): Promise<string> {
+    await createLogin(testDb.db, { name, memberNames, tokenHash: `hash-${name}` });
+    return (await getLoginIdByToken(testDb.db, name, `hash-${name}`))!;
   }
 
   async function fetchMember(gid: string, memberName: string) {
     return testDb.db
       .selectFrom('members')
       .selectAll()
-      .where('group_id', '=', gid)
+      .where('login_id', '=', gid)
       .where('member_name', '=', memberName)
       .executeTakeFirstOrThrow();
   }
 
   it('persists a single update', async () => {
-    groupId = await createTestGroup('batchgroup1', ['alice']);
-    batcher.enqueue(update(groupId, 'alice', { stats: [1, 2, 3, 4, 5, 6, 7] }));
+    loginId = await createTestLogin('batchlogin1', ['alice']);
+    batcher.enqueue(update(loginId, 'alice', { stats: [1, 2, 3, 4, 5, 6, 7] }));
     await batcher.flush();
 
-    const alice = await fetchMember(groupId, 'alice');
+    const alice = await fetchMember(loginId, 'alice');
     expect(alice.stats).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(alice.stats_last_update).not.toBeNull();
   });
 
   it('merges two concurrent partial updates for the same member without losing fields', async () => {
-    const gid = await createTestGroup('batchgroup2', ['bob']);
+    const gid = await createTestLogin('batchlogin2', ['bob']);
     batcher.enqueue(update(gid, 'bob', { stats: [1, 1, 1, 1, 1, 1, 1] }));
     batcher.enqueue(update(gid, 'bob', { coordinates: [100, 200, 0] }));
     await batcher.flush();
@@ -85,7 +85,7 @@ describe('update batcher (integration)', () => {
   });
 
   it('processes different members independently in the same batch', async () => {
-    const gid = await createTestGroup('batchgroup3', ['carol', 'dave']);
+    const gid = await createTestLogin('batchlogin3', ['carol', 'dave']);
     batcher.enqueue(update(gid, 'carol', { skills: new Array(24).fill(5) }));
     batcher.enqueue(update(gid, 'dave', { skills: new Array(24).fill(9) }));
     await batcher.flush();
@@ -95,7 +95,7 @@ describe('update batcher (integration)', () => {
   });
 
   it('accumulates deposits within a batch rather than overwriting', async () => {
-    const gid = await createTestGroup('batchgroup4', ['erin']);
+    const gid = await createTestLogin('batchlogin4', ['erin']);
     batcher.enqueue(update(gid, 'erin', { bank: [1, 5] }));
     await batcher.flush();
 
@@ -110,7 +110,7 @@ describe('update batcher (integration)', () => {
   });
 
   it('round-trips every batched field type in one update', async () => {
-    const gid = await createTestGroup('batchgroup5', ['frank']);
+    const gid = await createTestLogin('batchlogin5', ['frank']);
     const slayerTask = {
       task: 'Gargoyles',
       master: 'Duradel',
@@ -166,8 +166,8 @@ describe('update batcher (integration)', () => {
 
   it('handles a batch larger than CHUNK_SIZE (55 members)', async () => {
     const memberNames = Array.from({ length: 5 }, (_, i) => `chunkmember${i}`);
-    const gid = await createTestGroup('batchgroup6', memberNames);
-    // 55 members total across 2 chunks worth of distinct groups to exercise multi-chunk dispatch.
+    const gid = await createTestLogin('batchlogin6', memberNames);
+    // 55 members total across 2 chunks worth of distinct logins to exercise multi-chunk dispatch.
     for (let i = 0; i < 5; i++) {
       batcher.enqueue(update(gid, `chunkmember${i}`, { stats: [i, i, i, i, i, i, i] }));
     }
@@ -179,14 +179,14 @@ describe('update batcher (integration)', () => {
     }
   });
 
-  it('is a silent no-op for an update targeting a name that is not a group member', async () => {
-    const gid = await createTestGroup('batchgroup7', ['george']);
+  it('is a silent no-op for an update targeting a name that is not a login member', async () => {
+    const gid = await createTestLogin('batchlogin7', ['george']);
     batcher.enqueue(update(gid, 'not-a-real-member', { stats: [9, 9, 9, 9, 9, 9, 9] }));
     await expect(batcher.flush()).resolves.not.toThrow();
   });
 
   it('coalesces multiple @SHARED updates in one batch to the latest by lastUpdated', async () => {
-    const gid = await createTestGroup('batchgroup8', ['harry']);
+    const gid = await createTestLogin('batchlogin8', ['harry']);
     batcher.enqueue(update(gid, 'harry', { sharedBank: [1, 1], lastUpdated: '2026-01-01T00:00:00.000Z' }));
     batcher.enqueue(update(gid, 'harry', { sharedBank: [2, 2], lastUpdated: '2026-01-02T00:00:00.000Z' }));
     await batcher.flush();
@@ -196,7 +196,7 @@ describe('update batcher (integration)', () => {
   });
 
   it('persists across sequential batches cumulatively', async () => {
-    const gid = await createTestGroup('batchgroup9', ['ivy']);
+    const gid = await createTestLogin('batchlogin9', ['ivy']);
     batcher.enqueue(update(gid, 'ivy', { stats: [1, 1, 1, 1, 1, 1, 1] }));
     await batcher.flush();
     batcher.enqueue(update(gid, 'ivy', { coordinates: [5, 5, 0] }));

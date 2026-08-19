@@ -51,7 +51,7 @@ export function validateMemberPropLength(
 }
 
 /**
- * Per-field bounds for the partial `update-group-member` payload. Ported verbatim from the
+ * Per-field bounds for the partial `update-member` payload. Ported verbatim from the
  * Rust server's `authed::update_group_member` validation calls.
  */
 export const MEMBER_PROP_LIMITS = {

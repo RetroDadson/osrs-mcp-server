@@ -1,7 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.js';
-import { listAllMembers } from '../db/groups.js';
+import { listAllMembers } from '../db/logins.js';
 import { aggregateSkills, applySkillsRetention } from '../db/skills.js';
 import { fetchGePrices } from './ge-prices.js';
 import { syncMemberHiscores } from './hiscores.js';

@@ -10,16 +10,20 @@ import {
   upsertHiscoreActivity,
   upsertItemMetadata,
 } from '../src/db/events.js';
-import { createGroup, getGroupIdByToken, getMemberId } from '../src/db/groups.js';
+import { createLogin, getLoginIdByToken, getMemberId } from '../src/db/logins.js';
 import { buildTestApp, closeTestApp, TEST_SECRET, type TestApp } from './helpers/test-app.js';
 import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
 
-const groupName = 'mcptest';
+const loginName = 'mcptest';
 const token = 'mcp-test-token';
 
-async function connectClient(port: number, authToken = token): Promise<Client> {
+const soloLoginName = 'mcpsolo';
+const soloToken = 'mcp-solo-token';
+const soloPlayer = 'solo-player';
+
+async function connectClient(port: number, name = loginName, authToken = token): Promise<Client> {
   const client = new Client({ name: 'test-client', version: '1.0.0' });
-  const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp/${groupName}`), {
+  const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp/${name}`), {
     requestInit: { headers: { Authorization: authToken } },
   });
   await client.connect(transport);
@@ -35,18 +39,24 @@ describe('MCP server (real client over real HTTP)', () => {
   let testDb: TestDb;
   let testApp: TestApp;
   let port: number;
-  let groupId: string;
+  let loginId: string;
 
   beforeAll(async () => {
     testDb = await startTestDb();
-    await createGroup(testDb.db, {
-      name: groupName,
+    await createLogin(testDb.db, {
+      name: loginName,
       memberNames: ['alice', 'bob'],
-      tokenHash: tokenHash(token, groupName, TEST_SECRET),
+      tokenHash: tokenHash(token, loginName, TEST_SECRET),
     });
-    groupId = (await getGroupIdByToken(testDb.db, groupName, tokenHash(token, groupName, TEST_SECRET)))!;
+    loginId = (await getLoginIdByToken(testDb.db, loginName, tokenHash(token, loginName, TEST_SECRET)))!;
 
-    const aliceId = await getMemberId(testDb.db, groupId, 'alice');
+    await createLogin(testDb.db, {
+      name: soloLoginName,
+      memberNames: [soloPlayer],
+      tokenHash: tokenHash(soloToken, soloLoginName, TEST_SECRET),
+    });
+
+    const aliceId = await getMemberId(testDb.db, loginId, 'alice');
     await upsertItemMetadata(testDb.db, {
       itemId: 4151,
       name: 'Abyssal whip',
@@ -110,12 +120,12 @@ describe('MCP server (real client over real HTTP)', () => {
 
   it('rejects a connection with no Authorization header', async () => {
     const client = new Client({ name: 'test-client', version: '1.0.0' });
-    const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp/${groupName}`));
+    const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp/${loginName}`));
     await expect(client.connect(transport)).rejects.toThrow();
   });
 
   it('rejects a connection with the wrong token', async () => {
-    await expect(connectClient(port, 'wrong-token')).rejects.toThrow();
+    await expect(connectClient(port, loginName, 'wrong-token')).rejects.toThrow();
   });
 
   it('lists every registered tool', async () => {
@@ -124,7 +134,7 @@ describe('MCP server (real client over real HTTP)', () => {
     const names = tools.map((t) => t.name);
     expect(names).toEqual(
       expect.arrayContaining([
-        'list_group_members',
+        'list_members',
         'get_member_status',
         'get_items',
         'get_skills',
@@ -144,9 +154,9 @@ describe('MCP server (real client over real HTTP)', () => {
     await client.close();
   });
 
-  it('list_group_members returns the real members, not @SHARED', async () => {
+  it('list_members returns the real members, not @SHARED', async () => {
     const client = await connectClient(port);
-    const result = await client.callTool({ name: 'list_group_members', arguments: {} });
+    const result = await client.callTool({ name: 'list_members', arguments: {} });
     const members = firstTextContent(result as never) as { name: string }[];
     expect(members.map((m) => m.name).sort()).toEqual(['alice', 'bob']);
     await client.close();
@@ -165,7 +175,7 @@ describe('MCP server (real client over real HTTP)', () => {
   });
 
   it('get_items(shared_bank) resolves the @SHARED member\'s own bank, not an always-empty stub', async () => {
-    const sharedId = await getMemberId(testDb.db, groupId, '@SHARED');
+    const sharedId = await getMemberId(testDb.db, loginId, '@SHARED');
     await testDb.db.updateTable('members').set({ bank: [4151, 5] }).where('member_id', '=', sharedId!).execute();
 
     const client = await connectClient(port);
@@ -196,10 +206,27 @@ describe('MCP server (real client over real HTTP)', () => {
     await client.close();
   });
 
-  it('returns a helpful tool error for an unknown member, naming list_group_members', async () => {
+  it('returns a helpful tool error for an unknown member, naming list_members', async () => {
     const client = await connectClient(port);
     const result = await client.callTool({ name: 'get_skills', arguments: { member_name: 'nobody' } });
     expect(result.isError).toBe(true);
+    await client.close();
+  });
+
+  it('auto-resolves member_name when the login has exactly one member', async () => {
+    const client = await connectClient(port, soloLoginName, soloToken);
+    const result = await client.callTool({ name: 'get_member_status', arguments: {} });
+    const status = firstTextContent(result as never) as { name: string };
+    expect(status.name).toBe(soloPlayer);
+    await client.close();
+  });
+
+  it('returns a helpful error when member_name is omitted on a multi-member login', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_member_status', arguments: {} });
+    expect(result.isError).toBe(true);
+    const message = (result.content as Array<{ type: string; text?: string }>).find((c) => c.type === 'text')?.text;
+    expect(message).toMatch(/alice|bob|member_name/i);
     await client.close();
   });
 
@@ -286,12 +313,12 @@ describe('MCP server (real client over real HTTP)', () => {
     const info = client.getServerVersion();
     expect(info?.name).toBe('osrs-mcp');
     const instructions = client.getInstructions();
-    expect(instructions).toContain('list_group_members');
+    expect(instructions).toContain('list_members');
     await client.close();
   });
 
-  it('does not leak data across groups (a second group cannot see this one\'s members)', async () => {
-    await createGroup(testDb.db, { name: 'mcpother', memberNames: ['stranger'], tokenHash: tokenHash('other-token', 'mcpother', TEST_SECRET) });
+  it('does not leak data across logins (a second login cannot see this one\'s members)', async () => {
+    await createLogin(testDb.db, { name: 'mcpother', memberNames: ['stranger'], tokenHash: tokenHash('other-token', 'mcpother', TEST_SECRET) });
 
     const client = new Client({ name: 'test-client', version: '1.0.0' });
     const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp/mcpother`), {
@@ -299,7 +326,7 @@ describe('MCP server (real client over real HTTP)', () => {
     });
     await client.connect(transport);
 
-    const result = await client.callTool({ name: 'list_group_members', arguments: {} });
+    const result = await client.callTool({ name: 'list_members', arguments: {} });
     const members = firstTextContent(result as never) as { name: string }[];
     expect(members.map((m) => m.name)).toEqual(['stranger']);
     await client.close();

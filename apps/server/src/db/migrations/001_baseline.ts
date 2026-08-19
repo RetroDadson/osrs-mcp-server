@@ -2,7 +2,7 @@ import { type Kysely, sql } from 'kysely';
 
 /**
  * Columns that get a per-column `BEFORE UPDATE ... WHEN (OLD.x IS DISTINCT FROM NEW.x)` trigger
- * stamping `<name>_last_update = now()`. This is what makes `getGroupData`'s incremental
+ * stamping `<name>_last_update = now()`. This is what makes `getLoginData`'s incremental
  * "only return fields that changed since timestamp X" read pattern correct even though the
  * batcher writes many columns in one wide UPDATE statement - skip this and that optimization
  * silently breaks. `account_type` is deliberately excluded: its timestamp
@@ -32,19 +32,19 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`CREATE EXTENSION IF NOT EXISTS citext`.execute(db);
 
   await sql`
-    CREATE TABLE osrsmcp.groups (
-      group_id BIGSERIAL PRIMARY KEY,
-      group_name TEXT NOT NULL,
-      group_token_hash TEXT NOT NULL,
+    CREATE TABLE osrsmcp.logins (
+      login_id BIGSERIAL PRIMARY KEY,
+      login_name TEXT NOT NULL,
+      token_hash TEXT NOT NULL,
       version INTEGER NOT NULL DEFAULT 2,
-      UNIQUE (group_name, group_token_hash)
+      UNIQUE (login_name, token_hash)
     )
   `.execute(db);
 
   await sql`
     CREATE TABLE osrsmcp.members (
       member_id BIGSERIAL PRIMARY KEY,
-      group_id BIGINT NOT NULL REFERENCES osrsmcp.groups (group_id) ON DELETE CASCADE,
+      login_id BIGINT NOT NULL REFERENCES osrsmcp.logins (login_id) ON DELETE CASCADE,
       member_name CITEXT NOT NULL,
 
       stats_last_update TIMESTAMPTZ,
@@ -100,7 +100,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     )
   `.execute(db);
 
-  await sql`CREATE UNIQUE INDEX members_group_id_name_idx ON osrsmcp.members (group_id, member_name)`.execute(db);
+  await sql`CREATE UNIQUE INDEX members_login_id_name_idx ON osrsmcp.members (login_id, member_name)`.execute(db);
 
   for (const period of ['day', 'month', 'year'] as const) {
     await sql`

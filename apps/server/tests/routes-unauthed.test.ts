@@ -16,25 +16,25 @@ describe('unauthed routes', () => {
     await stopTestDb(testDb);
   });
 
-  it('creates a group and returns a generated token', async () => {
+  it('creates a login and returns a generated token', async () => {
     const res = await testApp.app.inject({
       method: 'POST',
-      url: '/api/create-group',
-      payload: { name: 'newgroup', member_names: ['alice', 'bob'] },
+      url: '/api/create-login',
+      payload: { login_name: 'newlogin', member_names: ['alice', 'bob'] },
     });
     expect(res.statusCode).toBe(201);
     const body = res.json();
-    expect(body.name).toBe('newgroup');
+    expect(body.login_name).toBe('newlogin');
     expect(body.member_names).toEqual(['alice', 'bob']);
     expect(typeof body.token).toBe('string');
     expect(body.token.length).toBeGreaterThan(0);
   });
 
-  it('allows a solo (1-member) group', async () => {
+  it('allows a solo (1-member) login', async () => {
     const res = await testApp.app.inject({
       method: 'POST',
-      url: '/api/create-group',
-      payload: { name: 'soloiron', member_names: ['justme'] },
+      url: '/api/create-login',
+      payload: { login_name: 'soloiron', member_names: ['justme'] },
     });
     expect(res.statusCode).toBe(201);
   });
@@ -42,8 +42,8 @@ describe('unauthed routes', () => {
   it('filters blank member names', async () => {
     const res = await testApp.app.inject({
       method: 'POST',
-      url: '/api/create-group',
-      payload: { name: 'paddedgroup', member_names: ['alice', '', '  ', 'bob', ''] },
+      url: '/api/create-login',
+      payload: { login_name: 'paddedlogin', member_names: ['alice', '', '  ', 'bob', ''] },
     });
     expect(res.statusCode).toBe(201);
     expect(res.json().member_names).toEqual(['alice', 'bob']);
@@ -52,17 +52,17 @@ describe('unauthed routes', () => {
   it('rejects more than 5 members', async () => {
     const res = await testApp.app.inject({
       method: 'POST',
-      url: '/api/create-group',
-      payload: { name: 'toobig', member_names: ['a', 'b', 'c', 'd', 'e', 'f'] },
+      url: '/api/create-login',
+      payload: { login_name: 'toobig', member_names: ['a', 'b', 'c', 'd', 'e', 'f'] },
     });
     expect(res.statusCode).toBe(400);
   });
 
-  it('rejects an invalid group name', async () => {
+  it('rejects an invalid login name', async () => {
     const res = await testApp.app.inject({
       method: 'POST',
-      url: '/api/create-group',
-      payload: { name: 'not valid!!', member_names: ['alice'] },
+      url: '/api/create-login',
+      payload: { login_name: 'not valid!!', member_names: ['alice'] },
     });
     expect(res.statusCode).toBe(400);
   });
@@ -70,8 +70,8 @@ describe('unauthed routes', () => {
   it('rejects an invalid member name', async () => {
     const res = await testApp.app.inject({
       method: 'POST',
-      url: '/api/create-group',
-      payload: { name: 'validgroup', member_names: ['not valid!!'] },
+      url: '/api/create-login',
+      payload: { login_name: 'validlogin', member_names: ['not valid!!'] },
     });
     expect(res.statusCode).toBe(400);
   });

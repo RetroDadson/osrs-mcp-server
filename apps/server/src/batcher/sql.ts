@@ -14,7 +14,7 @@ function bufferParam(value: number[] | undefined): Buffer | null {
 
 function rowTuple(update: PendingUpdate) {
   return sql`(
-    ${update.groupId}::bigint,
+    ${update.loginId}::bigint,
     ${update.name}::citext,
     ${update.stats ?? null}::int4[],
     ${update.coordinates ?? null}::int4[],
@@ -37,9 +37,9 @@ function rowTuple(update: PendingUpdate) {
 
 /**
  * One wide `UPDATE ... FROM (VALUES ...)` per chunk (<=CHUNK_SIZE rows). `COALESCE(b.x, a.x)` is
- * a DB-level safety net on top of `mergeGroupMember`'s app-level null-never-clobbers logic - a
+ * a DB-level safety net on top of `mergeMember`'s app-level null-never-clobbers logic - a
  * NULL param never overwrites existing data even if dedup were bypassed. Non-matching
- * `(group_id, member_name)` rows are silent no-ops (matches every column being cast to a known
+ * `(login_id, member_name)` rows are silent no-ops (matches every column being cast to a known
  * type up front, so a chunk that's entirely one column avoids Postgres's "could not determine
  * data type of parameter" error on all-NULL columns).
  */
@@ -70,11 +70,11 @@ export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly Pe
       combat_achievements = COALESCE(b.combat_achievements, a.combat_achievements),
       farming_patches = COALESCE(b.farming_patches, a.farming_patches)
     FROM (VALUES ${valuesList}) AS b(
-      group_id, member_name, stats, coordinates, skills, quests, inventory,
+      login_id, member_name, stats, coordinates, skills, quests, inventory,
       equipment, bank, rune_pouch, interacting, seed_vault, diary_vars, collection_log,
       potion_storage, slayer_task, combat_achievements, farming_patches
     )
-    WHERE a.group_id = b.group_id AND a.member_name = b.member_name
+    WHERE a.login_id = b.login_id AND a.member_name = b.member_name
   `.execute(db);
 }
 
@@ -113,7 +113,7 @@ export async function processBankSideEffects(db: Kysely<Database>, chunk: readon
       const member = await trx
         .selectFrom('members')
         .select(['member_id', 'bank'])
-        .where('group_id', '=', update.groupId)
+        .where('login_id', '=', update.loginId)
         .where('member_name', '=', update.name)
         .forUpdate()
         .executeTakeFirst();
@@ -130,16 +130,16 @@ export async function processBankSideEffects(db: Kysely<Database>, chunk: readon
   });
 }
 
-/** One `UPDATE` per group's coalesced shared-bank snapshot, all in one transaction. Idempotent on retry. */
+/** One `UPDATE` per login's coalesced shared-bank snapshot, all in one transaction. Idempotent on retry. */
 export async function processSharedBankUpdates(db: Kysely<Database>, updates: ReadonlyMap<string, number[]>): Promise<void> {
   if (updates.size === 0) return;
 
   await db.transaction().execute(async (trx) => {
-    for (const [groupId, bank] of updates) {
+    for (const [loginId, bank] of updates) {
       await trx
         .updateTable('members')
         .set({ bank, bank_last_update: new Date() })
-        .where('group_id', '=', groupId)
+        .where('login_id', '=', loginId)
         .where('member_name', '=', SHARED_MEMBER)
         .execute();
     }

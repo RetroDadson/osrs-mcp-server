@@ -4,16 +4,16 @@ import type { FarmingPatch, Interacting, SlayerTask } from '@osrs-mcp/shared';
 /** A column with a DB-side default; optional on insert, always present on select. */
 type WithDefault<T> = ColumnType<T, T | undefined, T>;
 
-export interface GroupsTable {
-  group_id: Generated<string>;
-  group_name: string;
-  group_token_hash: string;
+export interface LoginsTable {
+  login_id: Generated<string>;
+  login_name: string;
+  token_hash: string;
   version: WithDefault<number>;
 }
 
 export interface MembersTable {
   member_id: Generated<string>;
-  group_id: string;
+  login_id: string;
   /** Stored as `citext` - comparisons/uniqueness are case-insensitive at the DB layer. */
   member_name: string;
 
@@ -130,7 +130,7 @@ export interface ItemMetadataTable {
 }
 
 export interface Database {
-  groups: GroupsTable;
+  logins: LoginsTable;
   members: MembersTable;
   skills_day: SkillsPeriodRow;
   skills_month: SkillsPeriodRow;

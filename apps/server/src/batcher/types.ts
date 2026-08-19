@@ -2,11 +2,11 @@ import type { FarmingPatch, Interacting, SlayerTask } from '@osrs-mcp/shared';
 
 /**
  * Internal batcher representation of a partial member update - camelCase, decoupled from the
- * wire-format `GroupMemberUpdate` (snake_case). Every field but `groupId`/`name` is optional;
+ * wire-format `MemberUpdate` (snake_case). Every field but `loginId`/`name` is optional;
  * `undefined` means "unchanged", matching the wire contract's partial-update semantics.
  */
 export interface PendingUpdate {
-  groupId: string;
+  loginId: string;
   name: string;
   stats: number[] | undefined;
   coordinates: number[] | undefined;
@@ -29,7 +29,7 @@ export interface PendingUpdate {
   lastUpdated: string | undefined;
 }
 
-/** The 16 snapshot columns written by the bulk UPDATE (`group_id`/`member_name` are separate). */
+/** The 16 snapshot columns written by the bulk UPDATE (`login_id`/`member_name` are separate). */
 export const BATCHED_COLUMNS = [
   'stats',
   'coordinates',

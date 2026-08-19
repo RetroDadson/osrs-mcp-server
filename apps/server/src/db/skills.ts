@@ -1,5 +1,5 @@
 import { sql, type Kysely } from 'kysely';
-import type { AggregateSkillData, GroupSkillData } from '@osrs-mcp/shared';
+import type { AggregateSkillData, LoginSkillData } from '@osrs-mcp/shared';
 import type { Database } from './types.js';
 
 export type SkillsPeriodTable = 'skills_day' | 'skills_month' | 'skills_year';
@@ -72,14 +72,14 @@ export async function applySkillsRetention(db: Kysely<Database>): Promise<void> 
 
 export async function getSkillsForPeriod(
   db: Kysely<Database>,
-  groupId: string,
+  loginId: string,
   table: SkillsPeriodTable,
-): Promise<GroupSkillData> {
+): Promise<LoginSkillData> {
   const rows = await db
     .selectFrom(table)
     .innerJoin('members', 'members.member_id', `${table}.member_id`)
     .select(['members.member_name as name', `${table}.time as time`, `${table}.skills as skills`])
-    .where('members.group_id', '=', groupId)
+    .where('members.login_id', '=', loginId)
     .execute();
 
   const byMember = new Map<string, AggregateSkillData[]>();

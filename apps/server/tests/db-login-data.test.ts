@@ -1,23 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SHARED_MEMBER } from '@osrs-mcp/shared';
-import { getGroupData } from '../src/db/group-data.js';
-import { createGroup, getGroupIdByToken } from '../src/db/groups.js';
+import { getLoginData } from '../src/db/login-data.js';
+import { createLogin, getLoginIdByToken } from '../src/db/logins.js';
 import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
 
 const EPOCH = new Date(0);
 
-describe('getGroupData', () => {
+describe('getLoginData', () => {
   let testDb: TestDb;
-  let groupId: string;
+  let loginId: string;
 
   beforeAll(async () => {
     testDb = await startTestDb();
-    const group = await testDb.db
-      .insertInto('groups')
-      .values({ group_name: 'gdtest', group_token_hash: 'h' })
-      .returning('group_id')
+    const login = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: 'gdtest', token_hash: 'h' })
+      .returning('login_id')
       .executeTakeFirstOrThrow();
-    groupId = group.group_id;
+    loginId = login.login_id;
   }, 60_000);
 
   afterAll(async () => {
@@ -25,9 +25,9 @@ describe('getGroupData', () => {
   });
 
   it('returns undefined for fields that were never set', async () => {
-    await testDb.db.insertInto('members').values({ group_id: groupId, member_name: 'Bare' }).execute();
+    await testDb.db.insertInto('members').values({ login_id: loginId, member_name: 'Bare' }).execute();
 
-    const bare = (await getGroupData(testDb.db, groupId, EPOCH)).find((m) => m.name === 'Bare');
+    const bare = (await getLoginData(testDb.db, loginId, EPOCH)).find((m) => m.name === 'Bare');
 
     expect(bare).toBeDefined();
     expect(bare?.stats).toBeUndefined();
@@ -38,7 +38,7 @@ describe('getGroupData', () => {
   it('returns a field once set, and maps quests bytea to a plain number array', async () => {
     const inserted = await testDb.db
       .insertInto('members')
-      .values({ group_id: groupId, member_name: 'WithData' })
+      .values({ login_id: loginId, member_name: 'WithData' })
       .returning('member_id')
       .executeTakeFirstOrThrow();
 
@@ -48,7 +48,7 @@ describe('getGroupData', () => {
       .where('member_id', '=', inserted.member_id)
       .execute();
 
-    const member = (await getGroupData(testDb.db, groupId, EPOCH)).find((m) => m.name === 'WithData');
+    const member = (await getLoginData(testDb.db, loginId, EPOCH)).find((m) => m.name === 'WithData');
     expect(member?.stats).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(member?.quests).toEqual([0, 1, 2, 255]);
   });
@@ -56,7 +56,7 @@ describe('getGroupData', () => {
   it('omits fields updated before the `since` cutoff (incremental fetch)', async () => {
     const inserted = await testDb.db
       .insertInto('members')
-      .values({ group_id: groupId, member_name: 'Incremental' })
+      .values({ login_id: loginId, member_name: 'Incremental' })
       .returning('member_id')
       .executeTakeFirstOrThrow();
 
@@ -67,30 +67,30 @@ describe('getGroupData', () => {
       .execute();
 
     const future = new Date(Date.now() + 60_000);
-    const member = (await getGroupData(testDb.db, groupId, future)).find((m) => m.name === 'Incremental');
+    const member = (await getLoginData(testDb.db, loginId, future)).find((m) => m.name === 'Incremental');
     expect(member?.skills).toBeUndefined();
 
     const past = new Date(0);
-    const memberFromEpoch = (await getGroupData(testDb.db, groupId, past)).find((m) => m.name === 'Incremental');
+    const memberFromEpoch = (await getLoginData(testDb.db, loginId, past)).find((m) => m.name === 'Incremental');
     expect(memberFromEpoch?.skills).toEqual(new Array(24).fill(0));
   });
 
   it('returns account_type regardless of the since cutoff (not trigger-gated)', async () => {
     await testDb.db
       .insertInto('members')
-      .values({ group_id: groupId, member_name: 'AccountTyped', account_type: 'ironman' })
+      .values({ login_id: loginId, member_name: 'AccountTyped', account_type: 'ironman' })
       .execute();
 
     const future = new Date(Date.now() + 60_000);
-    const member = (await getGroupData(testDb.db, groupId, future)).find((m) => m.name === 'AccountTyped');
+    const member = (await getLoginData(testDb.db, loginId, future)).find((m) => m.name === 'AccountTyped');
     expect(member?.account_type).toBe('ironman');
   });
 
-  it('includes the @SHARED member like any other row (createGroup seeds one per group)', async () => {
-    await createGroup(testDb.db, { name: 'sharedtest', memberNames: ['realmember'], tokenHash: 'sharedhash' });
-    const sharedGroupId = await getGroupIdByToken(testDb.db, 'sharedtest', 'sharedhash');
+  it('includes the @SHARED member like any other row (createLogin seeds one per login)', async () => {
+    await createLogin(testDb.db, { name: 'sharedtest', memberNames: ['realmember'], tokenHash: 'sharedhash' });
+    const sharedLoginId = await getLoginIdByToken(testDb.db, 'sharedtest', 'sharedhash');
 
-    const members = await getGroupData(testDb.db, sharedGroupId!, EPOCH);
+    const members = await getLoginData(testDb.db, sharedLoginId!, EPOCH);
     expect(members.some((m) => m.name === SHARED_MEMBER)).toBe(true);
   });
 });

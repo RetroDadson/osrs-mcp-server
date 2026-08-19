@@ -4,11 +4,11 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { createMcpAuthPreHandler, type AuthDeps } from '../auth/index.js';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.js';
-import { createMcpServerForGroup } from './server-factory.js';
+import { createMcpServerForLogin } from './server-factory.js';
 import { McpSessionManager } from './session-manager.js';
 
-interface GroupNameParams {
-  groupName: string;
+interface LoginNameParams {
+  loginName: string;
 }
 
 const SESSION_HEADER = 'mcp-session-id';
@@ -16,7 +16,7 @@ const SESSION_HEADER = 'mcp-session-id';
 async function handleMcpRequest(
   db: Kysely<Database>,
   sessions: McpSessionManager,
-  request: FastifyRequest<{ Params: GroupNameParams }>,
+  request: FastifyRequest<{ Params: LoginNameParams }>,
   reply: FastifyReply,
 ): Promise<void> {
   const sessionId = request.headers[SESSION_HEADER];
@@ -36,7 +36,7 @@ async function handleMcpRequest(
     return;
   }
 
-  const server = createMcpServerForGroup(db, request.groupId!);
+  const server = createMcpServerForLogin(db, request.loginId!);
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (newSessionId) => {
@@ -55,11 +55,11 @@ export function registerMcpRoute(app: FastifyInstance, db: Kysely<Database>, aut
   const sessions = new McpSessionManager();
   const authPreHandler = createMcpAuthPreHandler(authDeps);
 
-  const handler = async (request: FastifyRequest<{ Params: GroupNameParams }>, reply: FastifyReply): Promise<void> => {
+  const handler = async (request: FastifyRequest<{ Params: LoginNameParams }>, reply: FastifyReply): Promise<void> => {
     await handleMcpRequest(db, sessions, request, reply);
   };
 
-  app.post('/mcp/:groupName', { preHandler: authPreHandler }, handler);
-  app.get('/mcp/:groupName', { preHandler: authPreHandler }, handler);
-  app.delete('/mcp/:groupName', { preHandler: authPreHandler }, handler);
+  app.post('/mcp/:loginName', { preHandler: authPreHandler }, handler);
+  app.get('/mcp/:loginName', { preHandler: authPreHandler }, handler);
+  app.delete('/mcp/:loginName', { preHandler: authPreHandler }, handler);
 }
