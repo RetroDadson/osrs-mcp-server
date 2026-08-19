@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { MenButton } from '../components/MenButton.js';
-import { useGroup } from '../state/GroupContext.js';
+import { useLogin } from '../state/LoginContext.js';
 
 export function SetupInstructions(): React.JSX.Element {
-  const { groupName, groupToken } = useGroup();
+  const { loginName, token } = useLogin();
   const [tokenRevealed, setTokenRevealed] = useState(false);
 
-  if (!groupName || !groupToken) {
-    return <Navigate to="/create-group" replace />;
+  if (!loginName || !token) {
+    return <Navigate to="/create-login" replace />;
   }
 
   return (
@@ -16,16 +16,16 @@ export function SetupInstructions(): React.JSX.Element {
       <div className="setup-instructions rsborder rsbackground">
         <h3>Setup instructions</h3>
         <p>
-          Install the <strong>OSRS MCP Tracker</strong> RuneLite plugin, then paste these credentials into its Group
-          Config:
+          Install the <strong>OSRS MCP Tracker</strong> RuneLite plugin, then paste these credentials into its config
+          panel:
         </p>
         <p>
-          Group name: <strong>{groupName}</strong>
+          Login name: <strong>{loginName}</strong>
         </p>
         <p>
-          Group token:{' '}
+          Token:{' '}
           {tokenRevealed ? (
-            <strong>{groupToken}</strong>
+            <strong>{token}</strong>
           ) : (
             <button type="button" className="reveal-token" onClick={() => setTokenRevealed(true)}>
               Click to show
@@ -33,8 +33,8 @@ export function SetupInstructions(): React.JSX.Element {
           )}
         </p>
         <img src="/images/config_panel.png" alt="RuneLite plugin config panel" className="setup-instructions__image" />
-        <Link to="/group">
-          <MenButton>Go to group</MenButton>
+        <Link to="/manage">
+          <MenButton>Continue</MenButton>
         </Link>
       </div>
     </div>

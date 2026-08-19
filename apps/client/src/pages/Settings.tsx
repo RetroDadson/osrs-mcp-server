@@ -1,12 +1,12 @@
 import { MemberRow } from '../components/MemberRow.js';
-import { useGroup } from '../state/GroupContext.js';
+import { useLogin } from '../state/LoginContext.js';
 import { getLayoutDirection, getTheme, setLayoutDirection, setTheme, type LayoutDirection, type Theme } from '../state/storage.js';
 import { useState } from 'react';
 
 const MAX_MEMBERS = 5;
 
-export function GroupSettings(): React.JSX.Element {
-  const { members } = useGroup();
+export function Settings(): React.JSX.Element {
+  const { members } = useLogin();
   const [theme, setThemeState] = useState<Theme>(getTheme());
   const [layout, setLayoutState] = useState<LayoutDirection>(getLayoutDirection());
 
@@ -21,8 +21,8 @@ export function GroupSettings(): React.JSX.Element {
   }
 
   return (
-    <div className="group-settings">
-      <section className="group-settings__members rsborder rsbackground">
+    <div className="login-settings">
+      <section className="login-settings__members rsborder rsbackground">
         <h3>Member settings</h3>
         {members.map((member, index) => (
           <MemberRow key={member.name} member={member.name} memberNumber={index + 1} />
@@ -30,7 +30,7 @@ export function GroupSettings(): React.JSX.Element {
         {members.length < MAX_MEMBERS && <MemberRow memberNumber={members.length + 1} />}
       </section>
 
-      <section className="group-settings__appearance rsborder rsbackground">
+      <section className="login-settings__appearance rsborder rsbackground">
         <h3>Appearance settings</h3>
         <fieldset>
           <legend>Theme</legend>

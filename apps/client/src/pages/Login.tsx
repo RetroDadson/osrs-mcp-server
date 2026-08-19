@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { amILoggedIn } from '../api/client.js';
 import { LabeledInput } from '../components/LabeledInput.js';
 import { MenButton } from '../components/MenButton.js';
-import { useGroup } from '../state/GroupContext.js';
+import { useLogin } from '../state/LoginContext.js';
 
 export function Login(): React.JSX.Element {
   const navigate = useNavigate();
-  const { setCredentials } = useGroup();
-  const [groupName, setGroupName] = useState('');
-  const [groupToken, setGroupToken] = useState('');
+  const { setCredentials } = useLogin();
+  const [loginName, setLoginName] = useState('');
+  const [token, setToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,13 +18,13 @@ export function Login(): React.JSX.Element {
     setError(null);
     setSubmitting(true);
     try {
-      const ok = await amILoggedIn(groupName, groupToken);
+      const ok = await amILoggedIn(loginName, token);
       if (!ok) {
-        setError('Group name or token is incorrect.');
+        setError('Name or token is incorrect.');
         return;
       }
-      setCredentials(groupName, groupToken);
-      navigate('/group');
+      setCredentials(loginName, token);
+      navigate('/manage');
     } catch {
       setError('Something went wrong. Try again.');
     } finally {
@@ -37,20 +37,20 @@ export function Login(): React.JSX.Element {
       <form className="login-page rsborder rsbackground" onSubmit={handleSubmit}>
         <h3>Login</h3>
         <LabeledInput
-          id="login-group-name"
-          label="Group name"
-          placeholder="Group name"
-          value={groupName}
-          onChange={(e) => setGroupName(e.target.value)}
+          id="login-name-input"
+          label="Login name"
+          placeholder="Login name"
+          value={loginName}
+          onChange={(e) => setLoginName(e.target.value)}
           required
         />
         <LabeledInput
-          id="login-group-token"
-          label="Group token"
-          placeholder="Group token"
+          id="login-token-input"
+          label="Token"
+          placeholder="Token"
           type="password"
-          value={groupToken}
-          onChange={(e) => setGroupToken(e.target.value)}
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
           required
         />
         {error && <div className="validation-error">{error}</div>}

@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import { MenButton } from '../components/MenButton.js';
 import { SocialLinks } from '../components/SocialLinks.js';
-import { useGroup } from '../state/GroupContext.js';
+import { useLogin } from '../state/LoginContext.js';
 
 export function Home(): React.JSX.Element {
-  const { isAuthenticated } = useGroup();
+  const { isAuthenticated } = useLogin();
 
   return (
     <div className="page-container">
@@ -12,12 +12,12 @@ export function Home(): React.JSX.Element {
       <div className="home__container">
         <h1>OSRS MCP</h1>
         <div className="home__links">
-          <Link to="/create-group">
+          <Link to="/create-login">
             <MenButton>Get started</MenButton>
           </Link>
           {isAuthenticated ? (
-            <Link to="/group">
-              <MenButton>Go to group</MenButton>
+            <Link to="/manage">
+              <MenButton>Continue</MenButton>
             </Link>
           ) : (
             <Link to="/login">

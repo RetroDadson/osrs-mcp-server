@@ -1,28 +1,28 @@
-const GROUP_NAME_KEY = 'groupName';
-const GROUP_TOKEN_KEY = 'groupToken';
+const LOGIN_NAME_KEY = 'loginName';
+const TOKEN_KEY = 'token';
 const THEME_KEY = 'theme';
 const LAYOUT_DIRECTION_KEY = 'layout-direction';
 
-export interface StoredGroup {
-  groupName: string | null;
-  groupToken: string | null;
+export interface StoredLogin {
+  loginName: string | null;
+  token: string | null;
 }
 
-export function storeGroup(groupName: string, groupToken: string): void {
-  localStorage.setItem(GROUP_NAME_KEY, groupName);
-  localStorage.setItem(GROUP_TOKEN_KEY, groupToken);
+export function storeLogin(loginName: string, token: string): void {
+  localStorage.setItem(LOGIN_NAME_KEY, loginName);
+  localStorage.setItem(TOKEN_KEY, token);
 }
 
-export function getStoredGroup(): StoredGroup {
+export function getStoredLogin(): StoredLogin {
   return {
-    groupName: localStorage.getItem(GROUP_NAME_KEY),
-    groupToken: localStorage.getItem(GROUP_TOKEN_KEY),
+    loginName: localStorage.getItem(LOGIN_NAME_KEY),
+    token: localStorage.getItem(TOKEN_KEY),
   };
 }
 
-export function clearStoredGroup(): void {
-  localStorage.removeItem(GROUP_NAME_KEY);
-  localStorage.removeItem(GROUP_TOKEN_KEY);
+export function clearStoredLogin(): void {
+  localStorage.removeItem(LOGIN_NAME_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 export type Theme = 'light' | 'dark';

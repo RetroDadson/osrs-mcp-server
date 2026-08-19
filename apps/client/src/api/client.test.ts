@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  addGroupMember,
+  addMember,
   amILoggedIn,
   ApiError,
-  createGroup,
+  createLogin,
   getCaptchaConfig,
-  getGroupData,
-  removeGroupMember,
-  renameGroupMember,
+  getLoginData,
+  removeMember,
+  renameMember,
 } from './client.js';
 
 function mockFetchOnce(status: number, body: unknown): void {
@@ -22,27 +22,27 @@ describe('api client', () => {
     vi.unstubAllGlobals();
   });
 
-  it('createGroup posts to /api/create-group and returns the parsed response', async () => {
+  it('createLogin posts to /api/create-login and returns the parsed response', async () => {
     const fetchMock = vi.fn(
-      async () => new Response(JSON.stringify({ name: 'g', member_names: ['a'], token: 't' }), { status: 201 }),
+      async () => new Response(JSON.stringify({ login_name: 'g', member_names: ['a'], token: 't' }), { status: 201 }),
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    const result = await createGroup('g', ['a'], '');
-    expect(result).toEqual({ name: 'g', member_names: ['a'], token: 't' });
+    const result = await createLogin('g', ['a'], '');
+    expect(result).toEqual({ login_name: 'g', member_names: ['a'], token: 't' });
 
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe('/api/create-group');
+    expect(url).toBe('/api/create-login');
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
-      name: 'g',
+      login_name: 'g',
       member_names: ['a'],
       captcha_response: '',
     });
   });
 
-  it('createGroup throws ApiError with the server message on failure', async () => {
-    mockFetchOnce(400, { message: 'Invalid group name' });
-    await expect(createGroup('bad name!!', [], '')).rejects.toThrow(ApiError);
+  it('createLogin throws ApiError with the server message on failure', async () => {
+    mockFetchOnce(400, { message: 'Invalid login name' });
+    await expect(createLogin('bad name!!', [], '')).rejects.toThrow(ApiError);
   });
 
   it('getCaptchaConfig returns the parsed config', async () => {
@@ -68,29 +68,29 @@ describe('api client', () => {
     expect((init as RequestInit).headers).toMatchObject({ Authorization: 'raw-token-value' });
   });
 
-  it('getGroupData throws ApiError on a non-ok response', async () => {
+  it('getLoginData throws ApiError on a non-ok response', async () => {
     mockFetchOnce(401, {});
-    await expect(getGroupData('g', 't')).rejects.toThrow(ApiError);
+    await expect(getLoginData('g', 't')).rejects.toThrow(ApiError);
   });
 
-  it('getGroupData returns the parsed member array on success', async () => {
+  it('getLoginData returns the parsed member array on success', async () => {
     mockFetchOnce(200, [{ name: 'alice' }]);
-    expect(await getGroupData('g', 't')).toEqual([{ name: 'alice' }]);
+    expect(await getLoginData('g', 't')).toEqual([{ name: 'alice' }]);
   });
 
-  it('addGroupMember/removeGroupMember/renameGroupMember throw ApiError on failure', async () => {
+  it('addMember/removeMember/renameMember throw ApiError on failure', async () => {
     mockFetchOnce(400, { message: 'nope' });
-    await expect(addGroupMember('g', 't', 'x')).rejects.toThrow(ApiError);
+    await expect(addMember('g', 't', 'x')).rejects.toThrow(ApiError);
 
     mockFetchOnce(400, { message: 'nope' });
-    await expect(removeGroupMember('g', 't', 'x')).rejects.toThrow(ApiError);
+    await expect(removeMember('g', 't', 'x')).rejects.toThrow(ApiError);
 
     mockFetchOnce(400, { message: 'nope' });
-    await expect(renameGroupMember('g', 't', 'x', 'y')).rejects.toThrow(ApiError);
+    await expect(renameMember('g', 't', 'x', 'y')).rejects.toThrow(ApiError);
   });
 
-  it('addGroupMember resolves on success', async () => {
+  it('addMember resolves on success', async () => {
     mockFetchOnce(201, {});
-    await expect(addGroupMember('g', 't', 'x')).resolves.toBeUndefined();
+    await expect(addMember('g', 't', 'x')).resolves.toBeUndefined();
   });
 });

@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useGroup } from '../state/GroupContext.js';
+import { useLogin } from '../state/LoginContext.js';
 
 export function Logout(): React.JSX.Element {
-  const { logout } = useGroup();
+  const { logout } = useLogin();
 
   useEffect(() => {
     logout();

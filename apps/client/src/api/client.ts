@@ -1,4 +1,4 @@
-import type { CaptchaConfig, CreateGroupResponse, GroupMember } from '@osrs-mcp/shared';
+import type { CaptchaConfig, CreateLoginResponse, Member } from '@osrs-mcp/shared';
 
 const BASE_URL = '/api';
 
@@ -21,21 +21,21 @@ function authHeaders(token: string): HeadersInit {
   return { Authorization: token, 'Content-Type': 'application/json' };
 }
 
-export async function createGroup(
-  name: string,
+export async function createLogin(
+  loginName: string,
   memberNames: string[],
   captchaResponse: string,
-): Promise<CreateGroupResponse> {
-  const res = await request('/create-group', {
+): Promise<CreateLoginResponse> {
+  const res = await request('/create-login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, member_names: memberNames, captcha_response: captchaResponse }),
+    body: JSON.stringify({ login_name: loginName, member_names: memberNames, captcha_response: captchaResponse }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, (body as { message?: string }).message ?? 'Failed to create group');
+    throw new ApiError(res.status, (body as { message?: string }).message ?? 'Failed to create login');
   }
-  return res.json() as Promise<CreateGroupResponse>;
+  return res.json() as Promise<CreateLoginResponse>;
 }
 
 export async function getCaptchaConfig(): Promise<CaptchaConfig> {
@@ -43,26 +43,26 @@ export async function getCaptchaConfig(): Promise<CaptchaConfig> {
   return res.json() as Promise<CaptchaConfig>;
 }
 
-export async function amILoggedIn(groupName: string, token: string): Promise<boolean> {
-  const res = await request(`/group/${encodeURIComponent(groupName)}/am-i-logged-in`, {
+export async function amILoggedIn(loginName: string, token: string): Promise<boolean> {
+  const res = await request(`/login/${encodeURIComponent(loginName)}/am-i-logged-in`, {
     headers: authHeaders(token),
   });
   return res.ok;
 }
 
-export async function getGroupData(groupName: string, token: string): Promise<GroupMember[]> {
+export async function getLoginData(loginName: string, token: string): Promise<Member[]> {
   const res = await request(
-    `/group/${encodeURIComponent(groupName)}/get-group-data?from_time=1970-01-01T00:00:00.000Z`,
+    `/login/${encodeURIComponent(loginName)}/get-data?from_time=1970-01-01T00:00:00.000Z`,
     { headers: authHeaders(token) },
   );
   if (!res.ok) {
-    throw new ApiError(res.status, 'Failed to fetch group data');
+    throw new ApiError(res.status, 'Failed to fetch login data');
   }
-  return res.json() as Promise<GroupMember[]>;
+  return res.json() as Promise<Member[]>;
 }
 
-export async function addGroupMember(groupName: string, token: string, name: string): Promise<void> {
-  const res = await request(`/group/${encodeURIComponent(groupName)}/add-group-member`, {
+export async function addMember(loginName: string, token: string, name: string): Promise<void> {
+  const res = await request(`/login/${encodeURIComponent(loginName)}/add-member`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify({ name }),
@@ -73,8 +73,8 @@ export async function addGroupMember(groupName: string, token: string, name: str
   }
 }
 
-export async function removeGroupMember(groupName: string, token: string, name: string): Promise<void> {
-  const res = await request(`/group/${encodeURIComponent(groupName)}/delete-group-member`, {
+export async function removeMember(loginName: string, token: string, name: string): Promise<void> {
+  const res = await request(`/login/${encodeURIComponent(loginName)}/delete-member`, {
     method: 'DELETE',
     headers: authHeaders(token),
     body: JSON.stringify({ name }),
@@ -85,13 +85,13 @@ export async function removeGroupMember(groupName: string, token: string, name: 
   }
 }
 
-export async function renameGroupMember(
-  groupName: string,
+export async function renameMember(
+  loginName: string,
   token: string,
   originalName: string,
   newName: string,
 ): Promise<void> {
-  const res = await request(`/group/${encodeURIComponent(groupName)}/rename-group-member`, {
+  const res = await request(`/login/${encodeURIComponent(loginName)}/rename-member`, {
     method: 'PUT',
     headers: authHeaders(token),
     body: JSON.stringify({ original_name: originalName, new_name: newName }),

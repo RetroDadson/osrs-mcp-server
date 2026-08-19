@@ -1,26 +1,26 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ConfirmDialogProvider } from './components/ConfirmDialog.js';
-import { CreateGroup } from './pages/CreateGroup.js';
-import { GroupLayout } from './pages/GroupLayout.js';
-import { GroupSettings } from './pages/GroupSettings.js';
+import { CreateLogin } from './pages/CreateLogin.js';
+import { LoginLayout } from './pages/LoginLayout.js';
+import { Settings } from './pages/Settings.js';
 import { Home } from './pages/Home.js';
 import { Login } from './pages/Login.js';
 import { Logout } from './pages/Logout.js';
 import { SetupInstructions } from './pages/SetupInstructions.js';
-import { GroupProvider } from './state/GroupContext.js';
+import { LoginProvider } from './state/LoginContext.js';
 
 const router = createBrowserRouter([
   { path: '/', element: <Home /> },
-  { path: '/create-group', element: <CreateGroup /> },
+  { path: '/create-login', element: <CreateLogin /> },
   { path: '/setup-instructions', element: <SetupInstructions /> },
   { path: '/login', element: <Login /> },
   { path: '/logout', element: <Logout /> },
   {
-    path: '/group',
-    element: <GroupLayout />,
+    path: '/manage',
+    element: <LoginLayout />,
     children: [
-      { index: true, element: <GroupSettings /> },
-      { path: 'settings', element: <GroupSettings /> },
+      { index: true, element: <Settings /> },
+      { path: 'settings', element: <Settings /> },
     ],
   },
   { path: '*', element: <Home /> },
@@ -28,10 +28,10 @@ const router = createBrowserRouter([
 
 export function App(): React.JSX.Element {
   return (
-    <GroupProvider>
+    <LoginProvider>
       <ConfirmDialogProvider>
         <RouterProvider router={router} />
       </ConfirmDialogProvider>
-    </GroupProvider>
+    </LoginProvider>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { addGroupMember, ApiError, removeGroupMember, renameGroupMember } from '../api/client.js';
-import { useGroup } from '../state/GroupContext.js';
+import { addMember, ApiError, removeMember, renameMember } from '../api/client.js';
+import { useLogin } from '../state/LoginContext.js';
 import { useConfirm } from './ConfirmDialog.js';
 import { LabeledInput } from './LabeledInput.js';
 import { MenButton } from './MenButton.js';
@@ -12,14 +12,14 @@ interface Props {
 }
 
 export function MemberRow({ member, memberNumber }: Props): React.JSX.Element {
-  const { groupName, groupToken, refreshMembers } = useGroup();
+  const { loginName, token, refreshMembers } = useLogin();
   const confirm = useConfirm();
   const [name, setName] = useState(member ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function withBusy(fn: () => Promise<void>): Promise<void> {
-    if (!groupName || !groupToken) return;
+    if (!loginName || !token) return;
     setBusy(true);
     setError(null);
     try {
@@ -33,24 +33,24 @@ export function MemberRow({ member, memberNumber }: Props): React.JSX.Element {
   }
 
   async function handleAdd(): Promise<void> {
-    if (!groupName || !groupToken || name.trim() === '') return;
-    await withBusy(() => addGroupMember(groupName, groupToken, name.trim()));
+    if (!loginName || !token || name.trim() === '') return;
+    await withBusy(() => addMember(loginName, token, name.trim()));
     setName('');
   }
 
   async function handleRename(): Promise<void> {
-    if (!groupName || !groupToken || !member || name.trim() === '' || name.trim() === member) return;
-    await withBusy(() => renameGroupMember(groupName, groupToken, member, name.trim()));
+    if (!loginName || !token || !member || name.trim() === '' || name.trim() === member) return;
+    await withBusy(() => renameMember(loginName, token, member, name.trim()));
   }
 
   async function handleRemove(): Promise<void> {
-    if (!groupName || !groupToken || !member) return;
+    if (!loginName || !token || !member) return;
     const confirmed = await confirm({
       headline: 'Remove member',
       body: `Are you sure you want to remove ${member}?`,
     });
     if (!confirmed) return;
-    await withBusy(() => removeGroupMember(groupName, groupToken, member));
+    await withBusy(() => removeMember(loginName, token, member));
   }
 
   return (

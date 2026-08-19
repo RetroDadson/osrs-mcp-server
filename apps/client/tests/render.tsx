@@ -2,14 +2,14 @@ import type { ReactElement, ReactNode } from 'react';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfirmDialogProvider } from '../src/components/ConfirmDialog.js';
-import { GroupProvider } from '../src/state/GroupContext.js';
+import { LoginProvider } from '../src/state/LoginContext.js';
 
 function AllProviders({ children, initialEntries }: { children: ReactNode; initialEntries?: string[] }) {
   return (
     <MemoryRouter initialEntries={initialEntries ?? ['/']}>
-      <GroupProvider>
+      <LoginProvider>
         <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
-      </GroupProvider>
+      </LoginProvider>
     </MemoryRouter>
   );
 }

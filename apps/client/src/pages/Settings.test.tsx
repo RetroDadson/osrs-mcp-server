@@ -4,29 +4,29 @@ import { describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../tests/render.js';
 import * as api from '../api/client.js';
-import { getLayoutDirection, getTheme, storeGroup } from '../state/storage.js';
-import { GroupLayout } from './GroupLayout.js';
-import { GroupSettings } from './GroupSettings.js';
+import { getLayoutDirection, getTheme, storeLogin } from '../state/storage.js';
+import { LoginLayout } from './LoginLayout.js';
+import { Settings } from './Settings.js';
 
 vi.mock('../api/client.js', async () => {
   const actual = await vi.importActual<typeof import('../api/client.js')>('../api/client.js');
-  return { ...actual, getGroupData: vi.fn() };
+  return { ...actual, getLoginData: vi.fn() };
 });
 
 function renderSettings(members: { name: string }[]) {
-  vi.mocked(api.getGroupData).mockResolvedValue(members);
-  storeGroup('mygroup', 'mytoken');
+  vi.mocked(api.getLoginData).mockResolvedValue(members);
+  storeLogin('mylogin', 'mytoken');
   return renderWithProviders(
     <Routes>
-      <Route path="/group" element={<GroupLayout />}>
-        <Route index element={<GroupSettings />} />
+      <Route path="/manage" element={<LoginLayout />}>
+        <Route index element={<Settings />} />
       </Route>
     </Routes>,
-    ['/group'],
+    ['/manage'],
   );
 }
 
-describe('GroupSettings', () => {
+describe('Settings', () => {
   it('renders one row per real member, excluding @SHARED', async () => {
     renderSettings([{ name: 'alice' }, { name: 'bob' }, { name: '@SHARED' }]);
     await waitFor(() => expect(screen.getByLabelText('Name of member 1')).toHaveValue('alice'));

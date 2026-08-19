@@ -1,28 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  clearStoredGroup,
+  clearStoredLogin,
   getLayoutDirection,
-  getStoredGroup,
+  getStoredLogin,
   getTheme,
   setLayoutDirection,
   setTheme,
-  storeGroup,
+  storeLogin,
 } from './storage.js';
 
-describe('group storage', () => {
-  it('stores and retrieves groupName/groupToken', () => {
-    storeGroup('mygroup', 'mytoken');
-    expect(getStoredGroup()).toEqual({ groupName: 'mygroup', groupToken: 'mytoken' });
+describe('login storage', () => {
+  it('stores and retrieves loginName/token', () => {
+    storeLogin('mylogin', 'mytoken');
+    expect(getStoredLogin()).toEqual({ loginName: 'mylogin', token: 'mytoken' });
   });
 
   it('returns nulls when nothing is stored', () => {
-    expect(getStoredGroup()).toEqual({ groupName: null, groupToken: null });
+    expect(getStoredLogin()).toEqual({ loginName: null, token: null });
   });
 
   it('clears stored credentials', () => {
-    storeGroup('mygroup', 'mytoken');
-    clearStoredGroup();
-    expect(getStoredGroup()).toEqual({ groupName: null, groupToken: null });
+    storeLogin('mylogin', 'mytoken');
+    clearStoredLogin();
+    expect(getStoredLogin()).toEqual({ loginName: null, token: null });
   });
 });
 
