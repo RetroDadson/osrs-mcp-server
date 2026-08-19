@@ -7,5 +7,3 @@
 .git
 .github
 pg-data
-backup/pg_backups
-backup/backup.log

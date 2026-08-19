@@ -67,7 +67,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build --workspace=packages/shared
-      - run: npx playwright install --with-deps chromium
+      # ubuntu-24.04 runners default needrestart to interactive mode, so any apt-get install this
+      # triggers (via --with-deps) hangs forever waiting for a TTY prompt that never comes - same
+      # class of issue hit on the PS2 Challenge Website. NEEDRESTART_MODE=a forces it non-interactive;
+      # timeout-minutes is a backstop so any future hang fails loudly instead of burning hours.
+      - name: Install Playwright browsers + OS deps
+        run: npx playwright install --with-deps chromium
+        timeout-minutes: 5
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          NEEDRESTART_MODE: a
       - name: e2e tests (real backend + testcontainers Postgres)
         run: npm run test:e2e --workspace=apps/client
       - uses: actions/upload-artifact@v4
