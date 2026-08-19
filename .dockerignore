@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/coverage
+**/playwright-report
+**/test-results
+**/*.tsbuildinfo
+.git
+.github
+pg-data
+backup/pg_backups
+backup/backup.log

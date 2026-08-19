@@ -1,0 +1,162 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace=packages/shared
+      - name: Unit tests (packages/shared)
+        run: npm test --workspace=packages/shared
+      - name: Unit tests (apps/server)
+        run: npm test --workspace=apps/server
+        env:
+          AUTH_SECRET: ci-unit-test-secret
+      - name: Unit tests (apps/client)
+        run: npm test --workspace=apps/client
+        env:
+          NODE_OPTIONS: --no-experimental-webstorage
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace=packages/shared
+      - name: Integration tests (apps/server, real testcontainers Postgres)
+        run: npm run test:integration --workspace=apps/server
+        env:
+          AUTH_SECRET: ci-integration-test-secret
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace=packages/shared
+      - run: npx playwright install --with-deps chromium
+      - name: e2e tests (real backend + testcontainers Postgres)
+        run: npm run test:e2e --workspace=apps/client
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/client/playwright-report/
+          retention-days: 7
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace=packages/shared
+      - run: npm run test:coverage --workspace=packages/shared
+      - run: npm run test:coverage --workspace=apps/server
+        env:
+          AUTH_SECRET: ci-coverage-secret
+      - run: npm run test:coverage --workspace=apps/client
+        env:
+          NODE_OPTIONS: --no-experimental-webstorage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            packages/shared/coverage/lcov.info
+            apps/server/coverage/lcov.info
+            apps/client/coverage/lcov.info
+          retention-days: 7
+
+  sonarcloud:
+    runs-on: ubuntu-latest
+    needs: coverage
+    if: ${{ vars.SONAR_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-reports
+      - uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: 0
+
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/master' && vars.DOCKERHUB_ENABLED == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: retrodadson/osrs-mcp:latest

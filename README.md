@@ -1,70 +1,83 @@
 # OSRS MCP Server
 
-Website: [osrsmcp.retrodadson.com](https://osrsmcp.retrodadson.com)
-
 Source for plugin: [github.com/RetroDadson/osrs-mcp-tracker-plugin](https://github.com/RetroDadson/osrs-mcp-tracker-plugin)
 
 This repo is the backend and account/token-management website for the plugin above. It stores OSRS player data reported by the plugin and exposes it through an [MCP](https://modelcontextprotocol.io/) server, so an AI assistant (e.g. Claude) can query it directly. It works for solo accounts and groups alike, and for every OSRS account type (regular, Ironman, Hardcore Ironman, Ultimate Ironman, Group Ironman).
 
-Originally forked from [group-ironmen](https://github.com/christoabrown/group-ironmen) — thanks to the original author for the excellent groundwork this project builds on.
+Originally forked from [group-ironmen](https://github.com/christoabrown/group-ironmen) — thanks to the original author for the excellent groundwork this project builds on. The server was later rewritten from Rust onto a TypeScript stack (the Rust implementation is preserved on the `rust-server-archive` branch for reference).
 
-Currently tracks:
+Tracks:
 
 * Inventory, equipment, bank, rune pouch, seed vault, and shared bank
-* Skill XP
-* World position
-* HP, prayer, energy, and world, as well as showing inactivity
-* Quest state — completed, finished, in progress
-* Achievement Diaries
-* Collection Log
+* Skill XP (current + historical, aggregated daily/monthly/yearly)
+* World position and current interaction target
+* Quest state, Achievement Diaries, Collection Log
+* Slayer tasks (current + history), Combat Achievements
+* Clue scroll completions (timestamped) and totals (from the OSRS Hiscores, authoritative)
+* Boss/activity kill counts (from the OSRS Hiscores)
+* Deaths (location + likely killer, best-effort)
 
-More data categories (Slayer tasks, kill counts, clue scrolls, deaths, farming patches) and the MCP server itself are on the way.
+## Architecture
 
-# Self-hosting
+A single npm-workspaces monorepo:
 
-It is possible to self-host the frontend and backend rather than use [osrsmcp.retrodadson.com](https://osrsmcp.retrodadson.com).
+* `apps/server` — Fastify REST API + MCP server (`@modelcontextprotocol/sdk`, Streamable HTTP transport) + background jobs (GE prices, skills aggregation, OSRS Hiscores polling, item metadata sync), backed by PostgreSQL via [Kysely](https://kysely.dev/).
+* `apps/client` — React token-management website (create a group, log in, manage members, appearance settings). No data-viewing dashboard — that's what the MCP server is for.
+* `packages/shared` — Zod schemas, TypeScript types, and validators shared between client and server.
 
-In the plugin settings, put the URL that you are hosting the server on. Leaving it blank will default to the public server above.
+`apps/server` serves the REST API (`/api/*`), the MCP server (`/mcp/:groupName`), and the built `apps/client` static site all from one process/port — one deployable, no reverse-proxying between separate frontend/backend containers.
 
-## With Docker
-
-Prerequisites
-
-* Docker
-* docker-compose
+## Self-hosting
 
 ### With docker-compose
 
-Copy the `docker-compose.yml`, `.env.example`, and `schema.sql` (exists in `server/src/sql`) files onto your server.
+Prerequisites: Docker, docker-compose.
 
-Copy the contents of `.env.example` into a new file named `.env` in the same directory and fill it with your secrets.
+1. Copy `docker-compose.yml` and `.env.example` onto your server.
+2. Copy `.env.example` to `.env` and fill in the values — the comments in the file explain each one. At minimum you need `PG_USER`/`PG_PASSWORD`/`PG_DB` and a random `AUTH_SECRET` (used to hash group tokens — treat it like a password; rotating it invalidates every existing group token).
+3. `docker-compose up -d --build`
 
-The `.env` file explains what should go into each secret.
+The app builds from source (`docker/Dockerfile`, context `.`) since no image is published yet. It listens on port `8080` by default (change the `ports` mapping in `docker-compose.yml` if you want a different host port). The database schema is created automatically on first boot — no manual `schema.sql` step needed.
 
-The `docker-compose.yml` has a line that takes the path to the `schema.sql`. Make sure to update this to the relative or absolute path of the file on your server.
+In the RuneLite plugin settings, set the base URL to wherever you're hosting this. Leaving it blank defaults to the public server.
 
-`docker-compose.yml` builds the frontend and backend images locally from source (`./site` and `./server`) rather than pulling published images, since none are published for this fork yet. After you have set up the `.env` file and `schema.sql` path, you can run `docker-compose up -d --build` and this will build and start both the frontend and backend. The backend should be available on port 5000 and the frontend on port 4000, although these can be changed in the docker-compose file.
+### Without docker-compose
 
-### Without docker-compose (untested)
+Build the image yourself: `docker build -f docker/Dockerfile -t osrs-mcp .`
 
-If you are not using docker-compose, you will have to set up the Postgres database and pass secrets in using Docker environment variables. See below in the [Without Docker](#without-docker) section for how to set up the database.
-
-Build and run the frontend image yourself (`docker build -t osrs-mcp-frontend ./site`), then run it:
-
-```sh
-docker run -d -e HOST_URL= osrs-mcp-frontend
-```
-
-Same thing for the backend (`docker build -t osrs-mcp-backend ./server`):
+Run it against your own Postgres instance:
 
 ```sh
-docker run -d -e PG_USER= -e PG_PASSWORD= -e PG_HOST= -e PG_PORT= -e PG_DB= -e BACKEND_SECRET= osrs-mcp-backend
+docker run -d -p 8080:8080 \
+  -e PG_USER=... -e PG_PASSWORD=... -e PG_HOST=... -e PG_PORT=5432 -e PG_DB=... \
+  -e AUTH_SECRET=... \
+  osrs-mcp
 ```
 
-Check `.env.example` for an explanation on what the value of each environment variable should be.
+See `.env.example` for the full list of supported environment variables (hCaptcha, log level, etc).
 
-Once it's running, the backend should be available on port 8080 and the frontend on port 4000.
+## Local development
 
-## Without Docker
+Prerequisites: Node.js 24+, npm, Docker (for integration/e2e tests, which use real ephemeral Postgres containers via testcontainers).
 
-To be filled...
+```sh
+npm install
+npm run build --workspace=packages/shared   # other workspaces import its compiled output
+
+# terminal 1 - backend (needs AUTH_SECRET and either DATABASE_URL or PG_* env vars set)
+npm run dev --workspace=apps/server
+
+# terminal 2 - frontend, proxies /api and /mcp to the backend on :8080
+npm run dev --workspace=apps/client
+```
+
+## Testing
+
+Each workspace has its own test suite; run them from the workspace directory or via `npm run <script> --workspace=<name>` from the root.
+
+* `npm test` — unit tests (vitest).
+* `npm run test:integration --workspace=apps/server` — integration tests against a real testcontainers Postgres.
+* `npm run test:e2e --workspace=apps/client` — Playwright e2e, spins up its own testcontainers Postgres and a real server instance.
+* `npm run test:coverage` — coverage report (v8), gated at ≥80% lines/statements/functions and ≥75% branches per workspace.
+
+`npm run lint` and `npm run typecheck` run across every workspace from the root.
