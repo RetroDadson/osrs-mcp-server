@@ -11,7 +11,7 @@ interface Props {
   memberNumber: number;
 }
 
-export function MemberRow({ member, memberNumber }: Props): React.JSX.Element {
+export function MemberRow({ member, memberNumber }: Readonly<Props>): React.JSX.Element {
   const { loginName, token, refreshMembers } = useLogin();
   const confirm = useConfirm();
   const [name, setName] = useState(member ?? '');

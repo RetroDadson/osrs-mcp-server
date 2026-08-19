@@ -35,7 +35,7 @@ interface Props {
 
 /** hCaptcha only reliably renders into its first-ever container in a page session - the script
  * tag and container are removed on unmount so a later remount gets a clean slate. */
-export function Captcha({ sitekey, onWidgetReady }: Props): React.JSX.Element {
+export function Captcha({ sitekey, onWidgetReady }: Readonly<Props>): React.JSX.Element {
   const widgetIdRef = useRef<string | null>(null);
 
   useEffect(() => {

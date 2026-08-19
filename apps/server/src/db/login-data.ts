@@ -65,10 +65,10 @@ export async function getLoginData(db: Kysely<Database>, loginId: string, since:
     SNAPSHOT_COLUMNS.map((c) => sql.ref(`${c}_last_update`)),
     sql`, `,
   );
-  const caseExprs = SNAPSHOT_COLUMNS.map(
-    (c) =>
-      sql`CASE WHEN ${sql.ref(`${c}_last_update`)} >= ${since} THEN ${sql.ref(c)} ELSE NULL END AS ${sql.raw(c)}`,
-  );
+  const caseExprs = SNAPSHOT_COLUMNS.map((c) => {
+    const lastUpdateColumn = `${c}_last_update`;
+    return sql`CASE WHEN ${sql.ref(lastUpdateColumn)} >= ${since} THEN ${sql.ref(c)} ELSE NULL END AS ${sql.raw(c)}`;
+  });
 
   const query = sql<LoginDataRow>`
     SELECT

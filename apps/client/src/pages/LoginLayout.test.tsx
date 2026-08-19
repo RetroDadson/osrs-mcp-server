@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../tests/render.js';
@@ -37,6 +37,6 @@ describe('LoginLayout', () => {
     );
 
     expect(screen.getByText('mylogin')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('Login content')).toBeInTheDocument());
+    expect(await screen.findByText('Login content')).toBeInTheDocument();
   });
 });

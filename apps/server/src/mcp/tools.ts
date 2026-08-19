@@ -69,14 +69,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
       }
 
       const member = await fetchMember(ctx, member_name);
-      const flat =
-        container === 'inventory'
-          ? member.inventory
-          : container === 'bank'
-            ? member.bank
-            : container === 'equipment'
-              ? member.equipment
-              : member.seed_vault;
+      const flat = member[container];
 
       const slotNames = container === 'equipment' ? EQUIPMENT_SLOT_NAMES : undefined;
       return jsonResult(await resolveFlatItems(ctx, flat, slotNames));

@@ -1,6 +1,5 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import type { Member } from '@osrs-mcp/shared';
-import { EQUIPMENT_SLOT_NAMES } from '@osrs-mcp/shared';
 import { getLoginData } from '../db/login-data.js';
 import { getItemMetadataBatch } from '../db/events.js';
 import { getMemberId, listMembers } from '../db/logins.js';
@@ -104,4 +103,4 @@ export async function resolveFlatItems(
   });
 }
 
-export { EQUIPMENT_SLOT_NAMES };
+export { EQUIPMENT_SLOT_NAMES } from '@osrs-mcp/shared';

@@ -19,7 +19,7 @@ interface LoginContextValue {
 
 const LoginContext = createContext<LoginContextValue | undefined>(undefined);
 
-export function LoginProvider({ children }: { children: ReactNode }): React.JSX.Element {
+export function LoginProvider({ children }: Readonly<{ children: ReactNode }>): React.JSX.Element {
   const stored = getStoredLogin();
   const [loginName, setLoginName] = useState<string | null>(stored.loginName);
   const [token, setToken] = useState<string | null>(stored.token);

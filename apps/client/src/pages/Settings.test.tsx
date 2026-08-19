@@ -41,14 +41,14 @@ describe('Settings', () => {
 
   it('hides the add-member row at 5 members', async () => {
     renderSettings([{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }, { name: 'e' }]);
-    await waitFor(() => expect(screen.getByLabelText('Name of member 5')).toBeInTheDocument());
+    expect(await screen.findByLabelText('Name of member 5')).toBeInTheDocument();
     expect(screen.queryByText('Add')).not.toBeInTheDocument();
   });
 
   it('changes and persists the theme setting', async () => {
     const user = userEvent.setup();
     renderSettings([{ name: 'alice' }]);
-    await waitFor(() => expect(screen.getByLabelText('Name of member 1')).toBeInTheDocument());
+    expect(await screen.findByLabelText('Name of member 1')).toBeInTheDocument();
 
     await user.click(screen.getByLabelText('Dark'));
     expect(getTheme()).toBe('dark');
@@ -57,7 +57,7 @@ describe('Settings', () => {
   it('changes and persists the layout direction setting', async () => {
     const user = userEvent.setup();
     renderSettings([{ name: 'alice' }]);
-    await waitFor(() => expect(screen.getByLabelText('Name of member 1')).toBeInTheDocument());
+    expect(await screen.findByLabelText('Name of member 1')).toBeInTheDocument();
 
     await user.click(screen.getByLabelText('Right'));
     expect(getLayoutDirection()).toBe('row-reverse');

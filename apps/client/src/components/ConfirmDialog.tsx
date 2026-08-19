@@ -10,7 +10,7 @@ type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
 
 const ConfirmDialogContext = createContext<ConfirmFn | undefined>(undefined);
 
-export function ConfirmDialogProvider({ children }: { children: ReactNode }): React.JSX.Element {
+export function ConfirmDialogProvider({ children }: Readonly<{ children: ReactNode }>): React.JSX.Element {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolveRef = useRef<((value: boolean) => void) | null>(null);
 
