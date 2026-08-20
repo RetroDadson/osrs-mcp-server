@@ -20,58 +20,29 @@ describe('unauthed routes', () => {
     const res = await testApp.app.inject({
       method: 'POST',
       url: '/api/create-login',
-      payload: { login_name: 'newlogin', member_names: ['alice', 'bob'] },
+      payload: { login_name: 'newlogin' },
     });
     expect(res.statusCode).toBe(201);
     const body = res.json();
     expect(body.login_name).toBe('newlogin');
-    expect(body.member_names).toEqual(['alice', 'bob']);
     expect(typeof body.token).toBe('string');
     expect(body.token.length).toBeGreaterThan(0);
-  });
-
-  it('allows a solo (1-member) login', async () => {
-    const res = await testApp.app.inject({
-      method: 'POST',
-      url: '/api/create-login',
-      payload: { login_name: 'soloiron', member_names: ['justme'] },
-    });
-    expect(res.statusCode).toBe(201);
-  });
-
-  it('filters blank member names', async () => {
-    const res = await testApp.app.inject({
-      method: 'POST',
-      url: '/api/create-login',
-      payload: { login_name: 'paddedlogin', member_names: ['alice', '', '  ', 'bob', ''] },
-    });
-    expect(res.statusCode).toBe(201);
-    expect(res.json().member_names).toEqual(['alice', 'bob']);
-  });
-
-  it('rejects more than 5 members', async () => {
-    const res = await testApp.app.inject({
-      method: 'POST',
-      url: '/api/create-login',
-      payload: { login_name: 'toobig', member_names: ['a', 'b', 'c', 'd', 'e', 'f'] },
-    });
-    expect(res.statusCode).toBe(400);
   });
 
   it('rejects an invalid login name', async () => {
     const res = await testApp.app.inject({
       method: 'POST',
       url: '/api/create-login',
-      payload: { login_name: 'not valid!!', member_names: ['alice'] },
+      payload: { login_name: 'not valid!!' },
     });
     expect(res.statusCode).toBe(400);
   });
 
-  it('rejects an invalid member name', async () => {
+  it('rejects a request body with unknown fields (e.g. a leftover member_names array)', async () => {
     const res = await testApp.app.inject({
       method: 'POST',
       url: '/api/create-login',
-      payload: { login_name: 'validlogin', member_names: ['not valid!!'] },
+      payload: { login_name: 'strictlogin', member_names: ['alice'] },
     });
     expect(res.statusCode).toBe(400);
   });

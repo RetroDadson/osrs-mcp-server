@@ -3,7 +3,7 @@ import {
   validName,
   validateStringLength,
   validateOptionalStringLength,
-  validateMemberPropLength,
+  validateSnapshotPropLength,
 } from './validators.js';
 
 describe('validName', () => {
@@ -27,7 +27,6 @@ describe('validName', () => {
     ['Bad@Name', 'contains @'],
     ['emoji😀', 'non-ASCII'],
     ['semi;colon', 'contains ;'],
-    ['@SHARED', 'contains @'],
   ])('rejects %s (%s)', (name) => {
     expect(validName(name)).toBe(false);
   });
@@ -58,28 +57,28 @@ describe('validateOptionalStringLength', () => {
   });
 });
 
-describe('validateMemberPropLength', () => {
+describe('validateSnapshotPropLength', () => {
   it('treats undefined and null as valid (unset fields skip validation)', () => {
-    expect(validateMemberPropLength('stats', undefined, 7, 7, 'flat').ok).toBe(true);
-    expect(validateMemberPropLength('stats', null, 7, 7, 'flat').ok).toBe(true);
+    expect(validateSnapshotPropLength('stats', undefined, 7, 7, 'flat').ok).toBe(true);
+    expect(validateSnapshotPropLength('stats', null, 7, 7, 'flat').ok).toBe(true);
   });
 
   it('enforces the inclusive min/max element count', () => {
-    expect(validateMemberPropLength('stats', new Array(7).fill(0), 7, 7, 'flat').ok).toBe(true);
-    expect(validateMemberPropLength('stats', new Array(6).fill(0), 7, 7, 'flat').ok).toBe(false);
-    expect(validateMemberPropLength('stats', new Array(8).fill(0), 7, 7, 'flat').ok).toBe(false);
+    expect(validateSnapshotPropLength('stats', new Array(7).fill(0), 7, 7, 'flat').ok).toBe(true);
+    expect(validateSnapshotPropLength('stats', new Array(6).fill(0), 7, 7, 'flat').ok).toBe(false);
+    expect(validateSnapshotPropLength('stats', new Array(8).fill(0), 7, 7, 'flat').ok).toBe(false);
   });
 
   it('enforces even length for item_pairs format', () => {
-    expect(validateMemberPropLength('inventory', new Array(56).fill(0), 0, 56, 'item_pairs').ok).toBe(true);
-    expect(validateMemberPropLength('inventory', new Array(55).fill(0), 0, 56, 'item_pairs').ok).toBe(false);
+    expect(validateSnapshotPropLength('inventory', new Array(56).fill(0), 0, 56, 'item_pairs').ok).toBe(true);
+    expect(validateSnapshotPropLength('inventory', new Array(55).fill(0), 0, 56, 'item_pairs').ok).toBe(false);
   });
 
   it('does not require evenness for flat format', () => {
-    expect(validateMemberPropLength('quests', new Array(3).fill(0), 0, 250, 'flat').ok).toBe(true);
+    expect(validateSnapshotPropLength('quests', new Array(3).fill(0), 0, 250, 'flat').ok).toBe(true);
   });
 
   it('allows an empty array when min is 0', () => {
-    expect(validateMemberPropLength('bank', [], 0, 3000, 'item_pairs').ok).toBe(true);
+    expect(validateSnapshotPropLength('bank', [], 0, 3000, 'item_pairs').ok).toBe(true);
   });
 });
