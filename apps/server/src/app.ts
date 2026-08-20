@@ -5,7 +5,6 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { createRestAuthPreHandler } from './auth/index.js';
-import { LoginFullError } from './db/logins.js';
 import { registerMcpRoute } from './mcp/index.js';
 import { registerAuthedRoutes, registerUnauthedRoutes, type RouteDeps } from './routes/index.js';
 
@@ -31,11 +30,7 @@ export async function buildApp(deps: RouteDeps): Promise<FastifyInstance> {
   // wires an error handler into a child context if it existed at the time that child was
   // registered, not lazily at `ready()` time.
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof LoginFullError) {
-      reply.code(400).send({ message: error.message });
-      return;
-    }
-    // Every other error (DB failures, unexpected exceptions) gets a bare 500 - full detail only
+    // Every error (DB failures, unexpected exceptions) gets a bare 500 - full detail only
     // in the server log, never in the response body.
     request.log.error(error);
     reply.code(500).send();
