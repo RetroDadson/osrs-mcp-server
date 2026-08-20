@@ -13,7 +13,7 @@ test('create a solo login, walk setup, log back in, manage members, and log out'
   await page.getByText('Create login').click();
 
   await expect(page).toHaveURL(/setup-instructions/);
-  await expect(page.getByText(loginName)).toBeVisible();
+  await expect(page.locator('main').getByText(loginName)).toBeVisible();
 
   const revealButton = page.getByText('Click to show');
   await revealButton.click();
@@ -31,7 +31,7 @@ test('create a solo login, walk setup, log back in, manage members, and log out'
   await page.goto('/login');
   await page.getByLabel('Login name').fill(loginName);
   await page.getByLabel('Token').fill(tokenText!);
-  await page.getByRole('button', { name: 'Login' }).click();
+  await page.locator('form').getByRole('button', { name: 'Login' }).click();
 
   await expect(page).toHaveURL(/\/manage/);
   await expect(page.getByLabel('Name of member 1')).toHaveValue(loginName);
@@ -53,5 +53,5 @@ test('create a solo login, walk setup, log back in, manage members, and log out'
 
   await page.getByText('Logout').click();
   await expect(page).toHaveURL('/');
-  await expect(page.getByText('Login')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'OSRS MCP' })).toBeVisible();
 });

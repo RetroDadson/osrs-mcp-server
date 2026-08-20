@@ -1,4 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { AppShell } from './components/AppShell.js';
 import { ConfirmDialogProvider } from './components/ConfirmDialog.js';
 import { CreateLogin } from './pages/CreateLogin.js';
 import { LoginLayout } from './pages/LoginLayout.js';
@@ -10,20 +11,25 @@ import { SetupInstructions } from './pages/SetupInstructions.js';
 import { LoginProvider } from './state/LoginContext.js';
 
 const router = createBrowserRouter([
-  { path: '/', element: <Home /> },
-  { path: '/create-login', element: <CreateLogin /> },
-  { path: '/setup-instructions', element: <SetupInstructions /> },
-  { path: '/login', element: <Login /> },
-  { path: '/logout', element: <Logout /> },
   {
-    path: '/manage',
-    element: <LoginLayout />,
+    element: <AppShell />,
     children: [
-      { index: true, element: <Settings /> },
-      { path: 'settings', element: <Settings /> },
+      { path: '/', element: <Home /> },
+      { path: '/create-login', element: <CreateLogin /> },
+      { path: '/setup-instructions', element: <SetupInstructions /> },
+      { path: '/login', element: <Login /> },
+      { path: '/logout', element: <Logout /> },
+      {
+        path: '/manage',
+        element: <LoginLayout />,
+        children: [
+          { index: true, element: <Settings /> },
+          { path: 'settings', element: <Settings /> },
+        ],
+      },
+      { path: '*', element: <Home /> },
     ],
   },
-  { path: '*', element: <Home /> },
 ]);
 
 export function App(): React.JSX.Element {
