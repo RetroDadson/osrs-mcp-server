@@ -25,7 +25,7 @@ export function SetupInstructions(): React.JSX.Element {
         <p>
           Token:{' '}
           {tokenRevealed ? (
-            <strong>{token}</strong>
+            <strong className="token-value">{token}</strong>
           ) : (
             <button type="button" className="reveal-token" onClick={() => setTokenRevealed(true)}>
               Click to show

@@ -245,12 +245,18 @@ legend {
 /* Login / CreateLogin / SetupInstructions forms */
 
 .login-page,
-.create-login,
-.setup-instructions {
+.create-login {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   width: min(420px, 100%);
+}
+
+.setup-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: min(640px, 100%);
 }
 
 .add-others-toggle {
@@ -264,6 +270,10 @@ legend {
   color: var(--accent);
   font-weight: 600;
   text-decoration: underline;
+}
+
+.token-value {
+  overflow-wrap: anywhere;
 }
 
 .setup-instructions__image {
