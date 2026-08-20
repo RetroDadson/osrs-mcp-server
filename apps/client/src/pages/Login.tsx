@@ -8,7 +8,6 @@ import { useLogin } from '../state/LoginContext.js';
 export function Login(): React.JSX.Element {
   const navigate = useNavigate();
   const { setCredentials } = useLogin();
-  const [loginName, setLoginName] = useState('');
   const [token, setToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -18,9 +17,9 @@ export function Login(): React.JSX.Element {
     setError(null);
     setSubmitting(true);
     try {
-      const ok = await amILoggedIn(loginName, token);
-      if (!ok) {
-        setError('Name or token is incorrect.');
+      const loginName = await amILoggedIn(token);
+      if (!loginName) {
+        setError('Token is incorrect.');
         return;
       }
       setCredentials(loginName, token);
@@ -36,14 +35,6 @@ export function Login(): React.JSX.Element {
     <div className="page-container">
       <form className="login-page panel" onSubmit={handleSubmit}>
         <h3>Login</h3>
-        <LabeledInput
-          id="login-name-input"
-          label="Login name"
-          placeholder="Login name"
-          value={loginName}
-          onChange={(e) => setLoginName(e.target.value)}
-          required
-        />
         <LabeledInput
           id="login-token-input"
           label="Token"

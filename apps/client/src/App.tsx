@@ -1,6 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AppShell } from './components/AppShell.js';
-import { ConfirmDialogProvider } from './components/ConfirmDialog.js';
 import { CreateLogin } from './pages/CreateLogin.js';
 import { LoginLayout } from './pages/LoginLayout.js';
 import { Settings } from './pages/Settings.js';
@@ -37,9 +36,7 @@ export function App(): React.JSX.Element {
   return (
     <LoginProvider>
       <LayoutProvider>
-        <ConfirmDialogProvider>
-          <RouterProvider router={router} />
-        </ConfirmDialogProvider>
+        <RouterProvider router={router} />
       </LayoutProvider>
     </LoginProvider>
   );

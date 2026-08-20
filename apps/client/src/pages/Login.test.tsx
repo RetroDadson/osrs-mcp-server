@@ -12,24 +12,22 @@ vi.mock('../api/client.js', async () => {
 });
 
 describe('Login', () => {
-  it('shows an error for an incorrect name/token combination', async () => {
-    vi.mocked(api.amILoggedIn).mockResolvedValue(false);
+  it('shows an error for an incorrect token', async () => {
+    vi.mocked(api.amILoggedIn).mockResolvedValue(null);
     const user = userEvent.setup();
     renderWithProviders(<Login />, ['/login']);
 
-    await user.type(screen.getByLabelText('Login name'), 'mylogin');
     await user.type(screen.getByLabelText('Token'), 'wrong');
     await user.click(screen.getByRole('button', { name: 'Login' }));
 
-    expect(await screen.findByText('Name or token is incorrect.')).toBeInTheDocument();
+    expect(await screen.findByText('Token is incorrect.')).toBeInTheDocument();
   });
 
   it('stores credentials on a successful login', async () => {
-    vi.mocked(api.amILoggedIn).mockResolvedValue(true);
+    vi.mocked(api.amILoggedIn).mockResolvedValue('mylogin');
     const user = userEvent.setup();
     renderWithProviders(<Login />, ['/login']);
 
-    await user.type(screen.getByLabelText('Login name'), 'mylogin');
     await user.type(screen.getByLabelText('Token'), 'right-token');
     await user.click(screen.getByRole('button', { name: 'Login' }));
 
