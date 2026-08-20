@@ -108,7 +108,7 @@ button.men-button.small {
 
 button:disabled {
   background: #b5b5b5;
-  color: #6a6868;
+  color: #404040;
   cursor: not-allowed;
 }
 

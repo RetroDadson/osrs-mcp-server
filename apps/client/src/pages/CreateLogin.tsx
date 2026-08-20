@@ -17,7 +17,9 @@ export function CreateLogin(): React.JSX.Element {
   const [showAddOthers, setShowAddOthers] = useState(false);
   const [customLoginName, setCustomLoginName] = useState('');
   const [otherCount, setOtherCount] = useState(1);
-  const [otherNames, setOtherNames] = useState<string[]>(['']);
+  const [otherFields, setOtherFields] = useState<{ id: string; name: string }[]>(() => [
+    { id: crypto.randomUUID(), name: '' },
+  ]);
   const [captchaConfig, setCaptchaConfig] = useState<{ enabled: boolean; sitekey: string } | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -31,11 +33,15 @@ export function CreateLogin(): React.JSX.Element {
 
   function handleOtherCountChange(count: number): void {
     setOtherCount(count);
-    setOtherNames((prev) => {
+    setOtherFields((prev) => {
       const next = prev.slice(0, count);
-      while (next.length < count) next.push('');
+      while (next.length < count) next.push({ id: crypto.randomUUID(), name: '' });
       return next;
     });
+  }
+
+  function handleOtherFieldChange(index: number, value: string): void {
+    setOtherFields((prev) => prev.map((f, i) => (i === index ? { ...f, name: value } : f)));
   }
 
   async function handleSubmit(event: React.FormEvent): Promise<void> {
@@ -48,7 +54,7 @@ export function CreateLogin(): React.JSX.Element {
       return;
     }
 
-    const others = showAddOthers ? otherNames.map((n) => n.trim()).filter((n) => n !== '') : [];
+    const others = showAddOthers ? otherFields.map((f) => f.name.trim()).filter((n) => n !== '') : [];
     if (others.some((n) => validateOsrsName(n))) {
       setServerError('Every member name must be valid.');
       return;
@@ -130,18 +136,15 @@ export function CreateLogin(): React.JSX.Element {
               </select>
             </div>
 
-            {otherNames.map((name, index) => (
+            {otherFields.map((field, index) => (
               <LabeledInput
-                key={index}
+                key={field.id}
                 id={`other-member-name-${index}`}
                 label={`Name of person ${index + 2}`}
                 placeholder="Player name"
                 maxLength={16}
-                value={name}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setOtherNames((prev) => prev.map((n, i) => (i === index ? value : n)));
-                }}
+                value={field.name}
+                onChange={(e) => handleOtherFieldChange(index, e.target.value)}
                 validate={(value) => (value.trim() === '' ? null : validateOsrsName(value))}
               />
             ))}
