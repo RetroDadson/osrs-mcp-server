@@ -69,7 +69,7 @@ export interface HiscoreProbeResult {
 /**
  * Tries each board most-restrictive-first, stopping at the first genuinely-ranked match. A 404
  * means "not on this leaderboard" (not an error) - keep probing. No match across all four boards
- * leaves the member unsynced this cycle (retried next interval).
+ * leaves the login unsynced this cycle (retried next interval).
  */
 export async function probeAccountHiscores(playerName: string): Promise<HiscoreProbeResult | undefined> {
   for (const accountType of PROBE_ORDER) {
