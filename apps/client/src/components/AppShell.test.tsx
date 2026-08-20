@@ -1,8 +1,9 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../tests/render.js';
-import { storeLogin } from '../state/storage.js';
+import { setLayoutDirection, storeLogin } from '../state/storage.js';
 import { AppShell } from './AppShell.js';
 
 describe('AppShell', () => {
@@ -63,5 +64,100 @@ describe('AppShell', () => {
     );
 
     expect(screen.getByText('page content')).toBeInTheDocument();
+  });
+
+  it('toggles the mobile sidebar open and closed via the toggle button', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>page content</div>} />
+        </Route>
+      </Routes>,
+    );
+
+    const openButton = screen.getByRole('button', { name: 'Open navigation' });
+    expect(openButton).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('Menu')).toBeInTheDocument();
+
+    await user.click(openButton);
+    const closeButton = screen.getByRole('button', { name: 'Close navigation' });
+    expect(closeButton).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Close')).toBeInTheDocument();
+
+    await user.click(closeButton);
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes the sidebar when the backdrop is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>page content</div>} />
+        </Route>
+      </Routes>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByRole('button', { name: 'Close navigation' })).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('Dismiss navigation overlay'));
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toBeInTheDocument();
+  });
+
+  it('closes the sidebar automatically when the route changes', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route
+            path="/"
+            element={
+              <div>
+                page content
+                <Link to="/other">Go</Link>
+              </div>
+            }
+          />
+          <Route path="/other" element={<div>other content</div>} />
+        </Route>
+      </Routes>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByRole('button', { name: 'Close navigation' })).toBeInTheDocument();
+
+    await user.click(screen.getByText('Go'));
+    expect(await screen.findByText('other content')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toBeInTheDocument();
+  });
+
+  it('marks the active nav link', () => {
+    storeLogin('mylogin', 'mytoken');
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/setup-instructions" element={<div>setup page</div>} />
+        </Route>
+      </Routes>,
+      ['/setup-instructions'],
+    );
+
+    expect(screen.getByText('Setup').closest('a')).toHaveClass('active');
+    expect(screen.getByText('Settings').closest('a')).not.toHaveClass('active');
+  });
+
+  it('adds the sidebar-right class when the dock panel is set to the right', () => {
+    setLayoutDirection('row-reverse');
+    const { container } = renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>page content</div>} />
+        </Route>
+      </Routes>,
+    );
+
+    expect(container.querySelector('.app-shell')).toHaveClass('sidebar-right');
   });
 });

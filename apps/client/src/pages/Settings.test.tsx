@@ -52,6 +52,9 @@ describe('Settings', () => {
 
     await user.click(screen.getByLabelText('Dark'));
     expect(getTheme()).toBe('dark');
+
+    await user.click(screen.getByLabelText('Light'));
+    expect(getTheme()).toBe('light');
   });
 
   it('changes and persists the layout direction setting', async () => {
@@ -61,5 +64,8 @@ describe('Settings', () => {
 
     await user.click(screen.getByLabelText('Right'));
     expect(getLayoutDirection()).toBe('row-reverse');
+
+    await user.click(screen.getByLabelText('Left'));
+    expect(getLayoutDirection()).toBe('row');
   });
 });
