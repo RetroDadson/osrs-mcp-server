@@ -32,7 +32,7 @@ export function ConfirmDialogProvider({ children }: Readonly<{ children: ReactNo
       {children}
       {options && (
         <div className="dialog dialog__visible">
-          <div className="dialog__container rsborder rsbackground">
+          <div className="dialog__container panel">
             <h2>{options.headline}</h2>
             <p>{options.body}</p>
             <div className="dialog__actions">

@@ -29,7 +29,7 @@ export function Settings(): React.JSX.Element {
 
   return (
     <div className="login-settings">
-      <section className="login-settings__members rsborder rsbackground">
+      <section className="login-settings__members panel">
         <h3>Member settings</h3>
         {members.map((member, index) => (
           <MemberRow key={member.name} member={member.name} memberNumber={index + 1} />
@@ -37,7 +37,7 @@ export function Settings(): React.JSX.Element {
         {members.length < MAX_MEMBERS && <MemberRow memberNumber={members.length + 1} />}
       </section>
 
-      <section className="login-settings__appearance rsborder rsbackground">
+      <section className="login-settings__appearance panel">
         <h3>Appearance settings</h3>
         <fieldset>
           <legend>Theme</legend>

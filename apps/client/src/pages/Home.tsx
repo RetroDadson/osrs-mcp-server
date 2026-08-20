@@ -9,7 +9,7 @@ export function Home(): React.JSX.Element {
   return (
     <div className="page-container">
       <SocialLinks />
-      <div className="home__container">
+      <div className="home__container panel">
         <h1>OSRS MCP</h1>
         <div className="home__links">
           <Link to="/create-login">

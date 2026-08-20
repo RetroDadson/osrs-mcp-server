@@ -22,7 +22,7 @@ export function LoginLayout(): React.JSX.Element {
 
   return (
     <div className="authed-section" style={{ display: 'flex', flexDirection: getLayoutDirection() }}>
-      <nav className="app-navigation rsborder rsbackground">
+      <nav className="app-navigation">
         <h4>{loginName}</h4>
         <Link to="/manage/settings">
           <MenButton className={location.pathname.endsWith('/settings') ? 'active' : ''}>Settings</MenButton>

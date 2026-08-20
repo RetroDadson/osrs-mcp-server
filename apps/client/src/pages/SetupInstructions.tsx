@@ -13,7 +13,7 @@ export function SetupInstructions(): React.JSX.Element {
 
   return (
     <div className="page-container">
-      <div className="setup-instructions rsborder rsbackground">
+      <div className="setup-instructions panel">
         <h3>Setup instructions</h3>
         <p>
           Install the <strong>OSRS MCP Tracker</strong> RuneLite plugin, then paste these credentials into its config
