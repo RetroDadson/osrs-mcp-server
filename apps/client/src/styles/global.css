@@ -319,6 +319,31 @@ legend {
   font-size: 1.1rem;
 }
 
+.app-navigation__links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.5rem;
+}
+
+.nav-link {
+  padding: 0.6rem 0.65rem;
+  border-radius: 6px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.nav-link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.nav-link.active {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 .app-shell__main {
   flex: 1;
   min-width: 0;
