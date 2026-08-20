@@ -4,20 +4,20 @@ import {
   CreateLoginRequestSchema,
   DeathEventSchema,
   FarmingPatchSchema,
-  MemberUpdateSchema,
+  LoginUpdateSchema,
   InteractingSchema,
   SlayerTaskCompletionSchema,
   SlayerTaskSchema,
 } from './models.js';
 
-describe('MemberUpdateSchema', () => {
+describe('LoginUpdateSchema', () => {
   it('accepts a payload with only name set (partial update)', () => {
-    const result = MemberUpdateSchema.safeParse({ name: 'Zezima' });
+    const result = LoginUpdateSchema.safeParse({ name: 'Zezima' });
     expect(result.success).toBe(true);
   });
 
   it('accepts a full snapshot payload', () => {
-    const result = MemberUpdateSchema.safeParse({
+    const result = LoginUpdateSchema.safeParse({
       name: 'Zezima',
       stats: [1, 2, 3, 4, 5, 6, 7],
       combat_achievements: [1, 2, 3, 4, 5, 6],
@@ -35,12 +35,12 @@ describe('MemberUpdateSchema', () => {
   });
 
   it('does NOT deny unknown fields (the plugin client may send extra fields to ignore)', () => {
-    const result = MemberUpdateSchema.safeParse({ name: 'Zezima', some_future_field: 123 });
+    const result = LoginUpdateSchema.safeParse({ name: 'Zezima', some_future_field: 123 });
     expect(result.success).toBe(true);
   });
 
   it('requires name', () => {
-    expect(MemberUpdateSchema.safeParse({ stats: [1] }).success).toBe(false);
+    expect(LoginUpdateSchema.safeParse({ stats: [1] }).success).toBe(false);
   });
 });
 
@@ -129,16 +129,15 @@ describe('DeathEventSchema', () => {
 
 describe('CreateLoginRequestSchema', () => {
   it('defaults captcha_response to an empty string', () => {
-    const result = CreateLoginRequestSchema.parse({ login_name: 'my-login', member_names: ['a', 'b'] });
+    const result = CreateLoginRequestSchema.parse({ login_name: 'my-login' });
     expect(result.captcha_response).toBe('');
   });
 
-  it('rejects unknown fields (e.g. a client-supplied token)', () => {
-    const result = CreateLoginRequestSchema.safeParse({
-      login_name: 'my-login',
-      member_names: ['a'],
-      token: 'client-supplied',
-    });
-    expect(result.success).toBe(false);
+  it('rejects unknown fields (e.g. a client-supplied token or a leftover member_names array)', () => {
+    const withToken = CreateLoginRequestSchema.safeParse({ login_name: 'my-login', token: 'client-supplied' });
+    expect(withToken.success).toBe(false);
+
+    const withMemberNames = CreateLoginRequestSchema.safeParse({ login_name: 'my-login', member_names: ['a'] });
+    expect(withMemberNames.success).toBe(false);
   });
 });
