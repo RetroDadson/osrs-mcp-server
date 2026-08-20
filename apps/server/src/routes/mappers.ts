@@ -1,10 +1,9 @@
-import type { MemberUpdate } from '@osrs-mcp/shared';
+import type { LoginUpdate } from '@osrs-mcp/shared';
 import type { PendingUpdate } from '../batcher/index.js';
 
-export function toPendingUpdate(loginId: string, update: MemberUpdate): PendingUpdate {
+export function toPendingUpdate(loginId: string, update: LoginUpdate): PendingUpdate {
   return {
     loginId,
-    name: update.name,
     stats: update.stats,
     coordinates: update.coordinates,
     skills: update.skills,
