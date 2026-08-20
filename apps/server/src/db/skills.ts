@@ -1,5 +1,5 @@
 import { sql, type Kysely } from 'kysely';
-import type { AggregateSkillData, LoginSkillData } from '@osrs-mcp/shared';
+import type { LoginSkillData } from '@osrs-mcp/shared';
 import type { Database } from './types.js';
 
 export type SkillsPeriodTable = 'skills_day' | 'skills_month' | 'skills_year';
@@ -17,8 +17,8 @@ const PERIOD_CONFIG: Record<SkillsPeriodTable, PeriodConfig> = {
 };
 
 /**
- * Buckets every member's current `skills` snapshot into `skills_day/month/year`, using
- * `aggregation_info.last_aggregation` (type='skills') as the "only members touched since then"
+ * Buckets every login's current `skills` snapshot into `skills_day/month/year`, using
+ * `aggregation_info.last_aggregation` (type='skills') as the "only logins touched since then"
  * cutoff, then advances that cutoff to now - all in one transaction.
  */
 export async function aggregateSkills(db: Kysely<Database>): Promise<void> {
@@ -32,13 +32,13 @@ export async function aggregateSkills(db: Kysely<Database>): Promise<void> {
     for (const table of Object.keys(PERIOD_CONFIG) as SkillsPeriodTable[]) {
       const { truncUnit } = PERIOD_CONFIG[table];
       await sql`
-        INSERT INTO ${sql.raw(`osrsmcp.${table}`)} (member_id, time, skills)
-        SELECT member_id, date_trunc(${truncUnit}, skills_last_update), skills
-        FROM osrsmcp.members
+        INSERT INTO ${sql.raw(`osrsmcp.${table}`)} (login_id, time, skills)
+        SELECT login_id, date_trunc(${truncUnit}, skills_last_update), skills
+        FROM osrsmcp.logins
         WHERE skills_last_update IS NOT NULL
           AND skills IS NOT NULL
           AND skills_last_update >= ${info.last_aggregation}
-        ON CONFLICT (member_id, time) DO UPDATE SET skills = excluded.skills
+        ON CONFLICT (login_id, time) DO UPDATE SET skills = excluded.skills
       `.execute(trx);
     }
 
@@ -52,7 +52,7 @@ export async function aggregateSkills(db: Kysely<Database>): Promise<void> {
 
 /**
  * Prunes rows older than each period's retention window, except the single most-recent
- * past-cutoff row per member - keeping one "last known" data point even after pruning.
+ * past-cutoff row per login - keeping one "last known" data point even after pruning.
  */
 export async function applySkillsRetention(db: Kysely<Database>): Promise<void> {
   for (const table of Object.keys(PERIOD_CONFIG) as SkillsPeriodTable[]) {
@@ -60,11 +60,11 @@ export async function applySkillsRetention(db: Kysely<Database>): Promise<void> 
     await sql`
       DELETE FROM ${sql.raw(`osrsmcp.${table}`)}
       WHERE time < NOW() - ${retentionInterval}::interval
-        AND (member_id, time) NOT IN (
-          SELECT DISTINCT ON (member_id) member_id, time
+        AND (login_id, time) NOT IN (
+          SELECT DISTINCT ON (login_id) login_id, time
           FROM ${sql.raw(`osrsmcp.${table}`)}
           WHERE time < NOW() - ${retentionInterval}::interval
-          ORDER BY member_id, time DESC
+          ORDER BY login_id, time DESC
         )
     `.execute(db);
   }
@@ -77,17 +77,10 @@ export async function getSkillsForPeriod(
 ): Promise<LoginSkillData> {
   const rows = await db
     .selectFrom(table)
-    .innerJoin('members', 'members.member_id', `${table}.member_id`)
-    .select(['members.member_name as name', `${table}.time as time`, `${table}.skills as skills`])
-    .where('members.login_id', '=', loginId)
+    .select(['time', 'skills'])
+    .where('login_id', '=', loginId)
+    .orderBy('time', 'asc')
     .execute();
 
-  const byMember = new Map<string, AggregateSkillData[]>();
-  for (const row of rows) {
-    const list = byMember.get(row.name) ?? [];
-    list.push({ time: row.time.toISOString(), data: row.skills });
-    byMember.set(row.name, list);
-  }
-
-  return Array.from(byMember.entries()).map(([name, skill_data]) => ({ name, skill_data }));
+  return rows.map((row) => ({ time: row.time.toISOString(), data: row.skills }));
 }

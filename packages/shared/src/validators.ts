@@ -33,7 +33,7 @@ export function validateOptionalStringLength(
 export type ArrayFormat = 'flat' | 'item_pairs';
 
 /** `min`/`max` are inclusive element-count bounds. `item_pairs` also requires an even length. */
-export function validateMemberPropLength(
+export function validateSnapshotPropLength(
   propName: string,
   value: readonly unknown[] | undefined | null,
   min: number,
@@ -51,10 +51,10 @@ export function validateMemberPropLength(
 }
 
 /**
- * Per-field bounds for the partial `update-member` payload. Ported verbatim from the
- * Rust server's `authed::update_group_member` validation calls.
+ * Per-field bounds for the partial `update` payload. Ported verbatim from the
+ * original Rust server's per-field validation calls.
  */
-export const MEMBER_PROP_LIMITS = {
+export const SNAPSHOT_PROP_LIMITS = {
   stats: { min: 7, max: 7, format: 'flat' },
   coordinates: { min: 3, max: 4, format: 'flat' },
   skills: { min: 23, max: 24, format: 'flat' },

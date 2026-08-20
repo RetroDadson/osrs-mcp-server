@@ -1,5 +1,5 @@
 import { sql, type Kysely } from 'kysely';
-import type { FarmingPatch, Member, Interacting, SlayerTask } from '@osrs-mcp/shared';
+import type { FarmingPatch, LoginSnapshot, Interacting, SlayerTask } from '@osrs-mcp/shared';
 import type { Database } from './types.js';
 
 /**
@@ -17,6 +17,7 @@ const SNAPSHOT_COLUMNS = [
   'inventory',
   'equipment',
   'bank',
+  'shared_bank',
   'rune_pouch',
   'interacting',
   'seed_vault',
@@ -29,7 +30,7 @@ const SNAPSHOT_COLUMNS = [
 ] as const;
 
 interface LoginDataRow {
-  member_name: string;
+  login_name: string;
   last_updated: Date | null;
   stats: number[] | null;
   coordinates: number[] | null;
@@ -38,6 +39,7 @@ interface LoginDataRow {
   inventory: number[] | null;
   equipment: number[] | null;
   bank: number[] | null;
+  shared_bank: number[] | null;
   rune_pouch: number[] | null;
   interacting: Interacting | null;
   seed_vault: number[] | null;
@@ -53,14 +55,16 @@ interface LoginDataRow {
 /**
  * Only returns fields whose `*_last_update` is at/after `since` (bandwidth optimization the
  * plugin client uses for incremental polling; MCP tools instead always pass epoch to force a
- * full read). Includes the synthetic `@SHARED` member like the rest of the login - callers that
- * want the shared bank should look up that row's own `bank` field.
+ * full read). Returns `undefined` if the login doesn't exist (shouldn't happen given a
+ * successfully-authenticated `loginId`, but the row lookup is defensive regardless).
  *
- * `shared_bank` and `deposited` are always `undefined`: neither is stored per-member (shared
- * bank contents live on `@SHARED`'s own `bank` column; `deposited` is a write-only/ephemeral
- * batcher input, never read back).
+ * `deposited` is always `undefined`: it's a write-only/ephemeral batcher input, never read back.
  */
-export async function getLoginData(db: Kysely<Database>, loginId: string, since: Date): Promise<Member[]> {
+export async function getLoginData(
+  db: Kysely<Database>,
+  loginId: string,
+  since: Date,
+): Promise<LoginSnapshot | undefined> {
   const greatestExpr = sql.join(
     SNAPSHOT_COLUMNS.map((c) => sql.ref(`${c}_last_update`)),
     sql`, `,
@@ -72,21 +76,21 @@ export async function getLoginData(db: Kysely<Database>, loginId: string, since:
 
   const query = sql<LoginDataRow>`
     SELECT
-      member_name,
+      login_name,
       GREATEST(${greatestExpr}) AS last_updated,
       ${sql.join(caseExprs, sql`, `)},
       account_type
-    FROM osrsmcp.members
+    FROM osrsmcp.logins
     WHERE login_id = ${loginId}
   `;
 
   const { rows } = await query.execute(db);
-  return rows.map(rowToMember);
+  return rows[0] ? rowToLoginSnapshot(rows[0]) : undefined;
 }
 
-function rowToMember(row: LoginDataRow): Member {
+function rowToLoginSnapshot(row: LoginDataRow): LoginSnapshot {
   return {
-    name: row.member_name,
+    name: row.login_name,
     stats: row.stats ?? undefined,
     coordinates: row.coordinates ?? undefined,
     skills: row.skills ?? undefined,
@@ -94,7 +98,7 @@ function rowToMember(row: LoginDataRow): Member {
     inventory: row.inventory ?? undefined,
     equipment: row.equipment ?? undefined,
     bank: row.bank ?? undefined,
-    shared_bank: undefined,
+    shared_bank: row.shared_bank ?? undefined,
     rune_pouch: row.rune_pouch ?? undefined,
     interacting: row.interacting ?? undefined,
     seed_vault: row.seed_vault ?? undefined,

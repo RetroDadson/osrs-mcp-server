@@ -1,5 +1,3 @@
-export const SHARED_MEMBER = '@SHARED';
-
 /** RuneLite `Skill` enum order. Index into a flat skills XP array. Overall is never included. */
 export const SKILL_NAMES = [
   'Attack',

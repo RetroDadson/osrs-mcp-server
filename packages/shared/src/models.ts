@@ -44,28 +44,20 @@ export const SlayerTaskSchema = z
   .strict();
 export type SlayerTask = z.infer<typeof SlayerTaskSchema>;
 
-export const RenameMemberSchema = z
+export const RenameLoginSchema = z
   .object({
-    original_name: z.string(),
     new_name: z.string(),
   })
   .strict();
-export type RenameMember = z.infer<typeof RenameMemberSchema>;
-
-export const AmIAMemberQuerySchema = z
-  .object({
-    member_name: z.string(),
-  })
-  .strict();
-export type AmIAMemberQuery = z.infer<typeof AmIAMemberQuerySchema>;
+export type RenameLogin = z.infer<typeof RenameLoginSchema>;
 
 /**
- * Partial update payload for `POST /api/login/:loginName/update-member`. Every field
- * except `name` is optional (a `null`/absent field means "unchanged", not "clear the value") -
- * mirrors the Rust `GroupMember` struct, which is deliberately NOT `deny_unknown_fields` since
- * the plugin client may send extra fields the server should just ignore.
+ * Partial update payload for `POST /api/update`. Every field except `name` is optional (a
+ * `null`/absent field means "unchanged", not "clear the value"). `name` is no longer used to
+ * route the request (auth resolves the login from the token alone) but the plugin still sends it
+ * for its own internal stale-state gating, so it stays required on the wire.
  */
-export const MemberUpdateSchema = z.object({
+export const LoginUpdateSchema = z.object({
   name: z.string(),
   stats: z.array(z.number().int()).optional(),
   coordinates: z.array(z.number().int()).optional(),
@@ -88,13 +80,11 @@ export const MemberUpdateSchema = z.object({
   account_type: z.string().optional(),
   last_updated: z.iso.datetime({ offset: true }).optional(),
 });
-export type MemberUpdate = z.infer<typeof MemberUpdateSchema>;
+export type LoginUpdate = z.infer<typeof LoginUpdateSchema>;
 
-/** Full member record as returned by `get-data` / the MCP tools. */
-export const MemberSchema = MemberUpdateSchema.omit({ name: true }).extend({
-  name: z.string(),
-});
-export type Member = z.infer<typeof MemberSchema>;
+/** Full login snapshot as returned by `get-data` / the MCP tools - same shape as `LoginUpdateSchema`. */
+export const LoginSnapshotSchema = LoginUpdateSchema;
+export type LoginSnapshot = z.infer<typeof LoginSnapshotSchema>;
 
 export const SlayerTaskCompletionSchema = z
   .object({
@@ -129,7 +119,6 @@ export type DeathEvent = z.infer<typeof DeathEventSchema>;
 export const CreateLoginRequestSchema = z
   .object({
     login_name: z.string(),
-    member_names: z.array(z.string()),
     captcha_response: z.string().optional().default(''),
   })
   .strict();
@@ -137,10 +126,14 @@ export type CreateLoginRequest = z.infer<typeof CreateLoginRequestSchema>;
 
 export const CreateLoginResponseSchema = z.object({
   login_name: z.string(),
-  member_names: z.array(z.string()),
   token: z.string(),
 });
 export type CreateLoginResponse = z.infer<typeof CreateLoginResponseSchema>;
+
+export const AmILoggedInResponseSchema = z.object({
+  login_name: z.string(),
+});
+export type AmILoggedInResponse = z.infer<typeof AmILoggedInResponseSchema>;
 
 export const CaptchaConfigSchema = z.object({
   enabled: z.boolean(),
@@ -154,13 +147,7 @@ export const AggregateSkillDataSchema = z.object({
 });
 export type AggregateSkillData = z.infer<typeof AggregateSkillDataSchema>;
 
-export const MemberSkillDataSchema = z.object({
-  name: z.string(),
-  skill_data: z.array(AggregateSkillDataSchema),
-});
-export type MemberSkillData = z.infer<typeof MemberSkillDataSchema>;
-
-export type LoginSkillData = MemberSkillData[];
+export type LoginSkillData = AggregateSkillData[];
 
 export const SkillDataPeriodSchema = z.enum(['Day', 'Week', 'Month', 'Year']);
 export type SkillDataPeriod = z.infer<typeof SkillDataPeriodSchema>;
