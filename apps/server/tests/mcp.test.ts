@@ -123,7 +123,7 @@ describe('MCP server (real client over real HTTP)', () => {
     const names = tools.map((t) => t.name);
     expect(names).toEqual(
       expect.arrayContaining([
-        'get_member_status',
+        'get_status',
         'get_items',
         'get_skills',
         'get_quests',
@@ -178,9 +178,9 @@ describe('MCP server (real client over real HTTP)', () => {
     await client.close();
   });
 
-  it('get_member_status returns a combined status snapshot', async () => {
+  it('get_status returns a combined status snapshot', async () => {
     const client = await connectClient(port);
-    const result = await client.callTool({ name: 'get_member_status', arguments: {} });
+    const result = await client.callTool({ name: 'get_status', arguments: {} });
     const status = firstTextContent(result as never) as { name: string; coordinates: number[]; slayer_task: { task: string } };
     expect(status.name).toBe(loginName);
     expect(status.coordinates).toEqual([3200, 3200, 0]);
@@ -268,7 +268,7 @@ describe('MCP server (real client over real HTTP)', () => {
     await createLogin(testDb.db, { name: 'mcpother', tokenHash: tokenHash('other-token', TEST_SECRET) });
 
     const client = await connectClient(port, 'other-token');
-    const result = await client.callTool({ name: 'get_member_status', arguments: {} });
+    const result = await client.callTool({ name: 'get_status', arguments: {} });
     const status = firstTextContent(result as never) as { name: string; coordinates: number[] | null };
     expect(status.name).toBe('mcpother');
     expect(status.coordinates).toBeNull();

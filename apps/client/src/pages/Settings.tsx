@@ -37,9 +37,9 @@ export function Settings(): React.JSX.Element {
         <h1>Settings</h1>
       </div>
       <div className="login-settings">
-        <section className="login-settings__members panel">
+        <section className="login-settings__character panel">
           <h3>Character name</h3>
-          <form onSubmit={handleRename} className="edit-member">
+          <form onSubmit={handleRename} className="rename-character">
             <LabeledInput
               id="login-name-input"
               label="Your OSRS name"

@@ -14,7 +14,7 @@ function jsonResult(data: unknown): CallToolResult {
 
 export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
-    'get_member_status',
+    'get_status',
     {
       description: 'Current snapshot of what this login is doing right now: stats, location, current interaction target, account type, and active Slayer task.',
     },
