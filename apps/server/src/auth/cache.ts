@@ -44,6 +44,11 @@ export class AuthenticationCache {
     this.entries.set(tokenHash, { loginId, loginName, expiresAt: now + TTL_MS });
   }
 
+  /** Drops a single entry immediately - used after a rename so the new name is visible right away, not after the TTL. */
+  evict(tokenHash: string): void {
+    this.entries.delete(tokenHash);
+  }
+
   private sweep(now: number): void {
     for (const [key, entry] of this.entries) {
       if (entry.expiresAt <= now) {

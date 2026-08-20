@@ -46,6 +46,22 @@ describe('AuthenticationCache', () => {
     expect(cache.size).toBe(1);
   });
 
+  it('evict drops a single entry immediately, without waiting for the TTL', () => {
+    const cache = new AuthenticationCache();
+    cache.insert('hashA', 'login-id-1', 'loginA');
+    cache.insert('hashB', 'login-id-2', 'loginB');
+
+    cache.evict('hashA');
+
+    expect(cache.get('hashA')).toBeUndefined();
+    expect(cache.get('hashB')).toEqual({ loginId: 'login-id-2', loginName: 'loginB' });
+  });
+
+  it('evict on a key that was never inserted is a no-op', () => {
+    const cache = new AuthenticationCache();
+    expect(() => cache.evict('nope')).not.toThrow();
+  });
+
   it('stops caching new entries once at capacity, without evicting existing ones', () => {
     const cache = new AuthenticationCache();
     const MAX_ENTRIES = 10_000;
