@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./ge-prices.js', () => ({ fetchGePrices: vi.fn().mockResolvedValue({ 1: 100 }) }));
-vi.mock('./hiscores.js', () => ({ syncMemberHiscores: vi.fn().mockResolvedValue(true) }));
+vi.mock('./hiscores.js', () => ({ syncLoginHiscores: vi.fn().mockResolvedValue(true) }));
 vi.mock('./item-metadata.js', () => ({ syncItemMetadata: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../db/skills.js', () => ({ aggregateSkills: vi.fn().mockResolvedValue(undefined), applySkillsRetention: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('../db/logins.js', () => ({ listAllMembers: vi.fn().mockResolvedValue([{ memberId: '1', memberName: 'alice' }]) }));
+vi.mock('../db/logins.js', () => ({ listAllLogins: vi.fn().mockResolvedValue([{ loginId: '1', loginName: 'alice' }]) }));
 vi.mock('../routes/ge-price-cache.js', () => ({ setGePrices: vi.fn() }));
 
 const { fetchGePrices } = await import('./ge-prices.js');
-const { syncMemberHiscores } = await import('./hiscores.js');
+const { syncLoginHiscores } = await import('./hiscores.js');
 const { syncItemMetadata } = await import('./item-metadata.js');
 const { aggregateSkills, applySkillsRetention } = await import('../db/skills.js');
 const { setGePrices } = await import('../routes/ge-price-cache.js');
@@ -68,9 +68,9 @@ describe('job scheduler', () => {
     handle.stop();
   });
 
-  it('startHiscoresPoller syncs every member returned by listAllMembers', async () => {
+  it('startHiscoresPoller syncs every login returned by listAllLogins', async () => {
     const handle = startHiscoresPoller(stubLogger(), {} as never);
-    await vi.waitFor(() => expect(syncMemberHiscores).toHaveBeenCalledWith({}, { memberId: '1', memberName: 'alice' }));
+    await vi.waitFor(() => expect(syncLoginHiscores).toHaveBeenCalledWith({}, { loginId: '1', loginName: 'alice' }));
     handle.stop();
   });
 
