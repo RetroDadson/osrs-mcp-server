@@ -4,15 +4,17 @@ const SWEEP_INTERVAL_MS = 60 * 1000;
 
 interface CachedEntry {
   loginId: string;
+  loginName: string;
   expiresAt: number;
 }
 
-function cacheKey(loginName: string, tokenHash: string): string {
-  return `${loginName}:${tokenHash}`;
+export interface CachedLogin {
+  loginId: string;
+  loginName: string;
 }
 
 /**
- * In-process, single-instance auth cache keyed by (loginName, tokenHash) - never the raw token.
+ * In-process, single-instance auth cache keyed by tokenHash alone - never the raw token.
  * TTL-only eviction (5 min), with a 10,000-entry cap enforced opportunistically on insert (no
  * proactive sweep timer, no LRU eviction - once full, new inserts are just silently not cached
  * until the next sweep frees room). A revoked/rotated token can still authenticate via a stale
@@ -22,14 +24,14 @@ export class AuthenticationCache {
   private readonly entries = new Map<string, CachedEntry>();
   private lastSweep = Date.now();
 
-  get(loginName: string, tokenHash: string): string | undefined {
-    const entry = this.entries.get(cacheKey(loginName, tokenHash));
+  get(tokenHash: string): CachedLogin | undefined {
+    const entry = this.entries.get(tokenHash);
     if (!entry) return undefined;
     if (entry.expiresAt <= Date.now()) return undefined;
-    return entry.loginId;
+    return { loginId: entry.loginId, loginName: entry.loginName };
   }
 
-  insert(loginName: string, tokenHash: string, loginId: string): void {
+  insert(tokenHash: string, loginId: string, loginName: string): void {
     const now = Date.now();
     if (now - this.lastSweep >= SWEEP_INTERVAL_MS) {
       this.sweep(now);
@@ -39,7 +41,7 @@ export class AuthenticationCache {
       return;
     }
 
-    this.entries.set(cacheKey(loginName, tokenHash), { loginId, expiresAt: now + TTL_MS });
+    this.entries.set(tokenHash, { loginId, loginName, expiresAt: now + TTL_MS });
   }
 
   private sweep(now: number): void {
