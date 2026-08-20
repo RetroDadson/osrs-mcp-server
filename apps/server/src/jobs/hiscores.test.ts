@@ -5,7 +5,7 @@ import {
   isRankedActivity,
   probeAccountHiscores,
   PROBE_ORDER,
-  syncMemberHiscores,
+  syncLoginHiscores,
   type HiscoreResponse,
 } from './hiscores.js';
 
@@ -102,19 +102,19 @@ describe('probeAccountHiscores', () => {
   });
 });
 
-describe('syncMemberHiscores', () => {
+describe('syncLoginHiscores', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('returns false without touching the db when the member has no match on any board', async () => {
+  it('returns false without touching the db when the login has no match on any board', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify(response(-1)), { status: 200 })),
     );
 
     // db is never dereferenced on this early-return path - passing a bare object proves it.
-    const synced = await syncMemberHiscores({} as never, { memberId: '1', memberName: 'Nobody' });
+    const synced = await syncLoginHiscores({} as never, { loginId: '1', loginName: 'Nobody' });
     expect(synced).toBe(false);
   });
 });
