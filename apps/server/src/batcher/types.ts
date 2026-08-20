@@ -1,13 +1,12 @@
 import type { FarmingPatch, Interacting, SlayerTask } from '@osrs-mcp/shared';
 
 /**
- * Internal batcher representation of a partial member update - camelCase, decoupled from the
- * wire-format `MemberUpdate` (snake_case). Every field but `loginId`/`name` is optional;
- * `undefined` means "unchanged", matching the wire contract's partial-update semantics.
+ * Internal batcher representation of a partial login update - camelCase, decoupled from the
+ * wire-format `LoginUpdate` (snake_case). Every field but `loginId` is optional; `undefined`
+ * means "unchanged", matching the wire contract's partial-update semantics.
  */
 export interface PendingUpdate {
   loginId: string;
-  name: string;
   stats: number[] | undefined;
   coordinates: number[] | undefined;
   skills: number[] | undefined;
@@ -29,7 +28,7 @@ export interface PendingUpdate {
   lastUpdated: string | undefined;
 }
 
-/** The 16 snapshot columns written by the bulk UPDATE (`login_id`/`member_name` are separate). */
+/** The 17 snapshot columns written by the bulk UPDATE (`login_id` is separate). */
 export const BATCHED_COLUMNS = [
   'stats',
   'coordinates',
@@ -38,6 +37,7 @@ export const BATCHED_COLUMNS = [
   'inventory',
   'equipment',
   'bank',
+  'shared_bank',
   'rune_pouch',
   'interacting',
   'seed_vault',
