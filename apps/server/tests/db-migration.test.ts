@@ -60,7 +60,7 @@ describe('baseline migration', () => {
 
     const login = await testDb.db
       .insertInto('logins')
-      .values({ login_name: 'jsonb-test', token_hash: 'hash', slayer_task: slayerTask })
+      .values({ login_name: 'jsonb-test', token_hash: 'hash-jsonb', slayer_task: slayerTask })
       .returning('login_id')
       .executeTakeFirstOrThrow();
 
@@ -76,7 +76,7 @@ describe('baseline migration', () => {
   it('returns bigserial ids as strings (safe for int8 precision)', async () => {
     const login = await testDb.db
       .insertInto('logins')
-      .values({ login_name: 'bigint-test', token_hash: 'hash' })
+      .values({ login_name: 'bigint-test', token_hash: 'hash-bigint' })
       .returning('login_id')
       .executeTakeFirstOrThrow();
 

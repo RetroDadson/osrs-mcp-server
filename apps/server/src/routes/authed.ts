@@ -15,6 +15,7 @@ import {
   validName,
   type ValidationResult,
 } from '@osrs-mcp/shared';
+import { tokenHash } from '../auth/index.js';
 import { renameLogin } from '../db/logins.js';
 import { getLoginData } from '../db/login-data.js';
 import { getSkillsForPeriod, type SkillsPeriodTable } from '../db/skills.js';
@@ -48,6 +49,9 @@ export function registerAuthedRoutes(app: FastifyInstance, deps: RouteDeps): voi
       return reply.code(400).send({ message: 'Invalid name' });
     }
     await renameLogin(deps.db, loginId(request), new_name);
+    // The auth cache holds the old loginName keyed by this token's hash - evict it so the new
+    // name is visible immediately instead of only after the cache's TTL expires.
+    deps.authCache.evict(tokenHash(request.headers.authorization!, deps.config.authSecret));
     return reply.code(200).send();
   });
 
