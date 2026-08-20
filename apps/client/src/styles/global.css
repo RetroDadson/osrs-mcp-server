@@ -41,7 +41,7 @@ h3 {
 }
 
 @font-face {
-  font-family: 'rssmall', sans-serif;
+  font-family: 'rssmall';
   font-display: block;
   src: url('/fonts/RuneScape-Chat-07.ttf');
 }
