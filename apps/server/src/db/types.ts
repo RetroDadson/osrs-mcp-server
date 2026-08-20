@@ -9,13 +9,6 @@ export interface LoginsTable {
   login_name: string;
   token_hash: string;
   version: WithDefault<number>;
-}
-
-export interface MembersTable {
-  member_id: Generated<string>;
-  login_id: string;
-  /** Stored as `citext` - comparisons/uniqueness are case-insensitive at the DB layer. */
-  member_name: string;
 
   stats_last_update: Date | null;
   stats: number[] | null;
@@ -40,6 +33,10 @@ export interface MembersTable {
 
   bank_last_update: Date | null;
   bank: number[] | null;
+
+  /** Models the OSRS in-game Group Storage feature (tied to account type), not app-level sharing. */
+  shared_bank_last_update: Date | null;
+  shared_bank: number[] | null;
 
   seed_vault_last_update: Date | null;
   seed_vault: number[] | null;
@@ -75,7 +72,7 @@ export interface MembersTable {
 }
 
 export interface SkillsPeriodRow {
-  member_id: string;
+  login_id: string;
   time: Date;
   skills: number[];
 }
@@ -87,7 +84,7 @@ export interface AggregationInfoTable {
 
 export interface SlayerTaskHistoryTable {
   id: Generated<string>;
-  member_id: string;
+  login_id: string;
   task: string;
   master: string | null;
   amount_completed: number;
@@ -96,7 +93,7 @@ export interface SlayerTaskHistoryTable {
 }
 
 export interface HiscoreActivitiesTable {
-  member_id: string;
+  login_id: string;
   activity_name: string;
   score: number;
   last_updated: WithDefault<Date>;
@@ -104,14 +101,14 @@ export interface HiscoreActivitiesTable {
 
 export interface ClueCompletionsTable {
   id: Generated<string>;
-  member_id: string;
+  login_id: string;
   tier: string;
   completed_at: WithDefault<Date>;
 }
 
 export interface DeathsTable {
   id: Generated<string>;
-  member_id: string;
+  login_id: string;
   died_at: WithDefault<Date>;
   world_x: number | null;
   world_y: number | null;
@@ -131,7 +128,6 @@ export interface ItemMetadataTable {
 
 export interface Database {
   logins: LoginsTable;
-  members: MembersTable;
   skills_day: SkillsPeriodRow;
   skills_month: SkillsPeriodRow;
   skills_year: SkillsPeriodRow;

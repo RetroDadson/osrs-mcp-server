@@ -1,10 +1,10 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.js';
-import { listAllMembers } from '../db/logins.js';
+import { listAllLogins } from '../db/logins.js';
 import { aggregateSkills, applySkillsRetention } from '../db/skills.js';
 import { fetchGePrices } from './ge-prices.js';
-import { syncMemberHiscores } from './hiscores.js';
+import { syncLoginHiscores } from './hiscores.js';
 import { syncItemMetadata } from './item-metadata.js';
 import { setGePrices } from '../routes/ge-price-cache.js';
 
@@ -61,15 +61,15 @@ export function startHiscoresPoller(logger: FastifyBaseLogger, db: Kysely<Databa
     logger,
     'hiscores-poller',
     async () => {
-      const members = await listAllMembers(db);
-      for (const member of members) {
+      const logins = await listAllLogins(db);
+      for (const login of logins) {
         try {
-          const synced = await syncMemberHiscores(db, member);
+          const synced = await syncLoginHiscores(db, login);
           if (!synced) {
-            logger.warn({ member: member.memberName }, 'member not found on any Hiscores board this cycle');
+            logger.warn({ login: login.loginName }, 'login not found on any Hiscores board this cycle');
           }
         } catch (error) {
-          logger.error({ err: error, member: member.memberName }, 'hiscores sync failed for member');
+          logger.error({ err: error, login: login.loginName }, 'hiscores sync failed for login');
         }
       }
     },
