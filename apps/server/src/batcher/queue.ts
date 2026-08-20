@@ -1,7 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.js';
-import { coalesceSharedBankUpdates, deduplicateBatch } from './merge.js';
-import { executeBulkUpdate, processBankSideEffects, processSharedBankUpdates } from './sql.js';
+import { deduplicateBatch } from './merge.js';
+import { executeBulkUpdate, processBankSideEffects } from './sql.js';
 import type { PendingUpdate } from './types.js';
 
 export const BATCH_SIZE = 5000;
@@ -24,8 +24,6 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 }
 
 async function processBatch(db: Kysely<Database>, buffer: readonly PendingUpdate[]): Promise<void> {
-  // Coalesced from the RAW buffer before dedup - see coalesceSharedBankUpdates's own docs.
-  const sharedBankUpdates = coalesceSharedBankUpdates(buffer);
   const deduped = deduplicateBatch([...buffer]);
   const chunks = chunk(deduped, CHUNK_SIZE);
 
@@ -35,12 +33,10 @@ async function processBatch(db: Kysely<Database>, buffer: readonly PendingUpdate
       await processBankSideEffects(db, batchChunk);
     }),
   );
-
-  await processSharedBankUpdates(db, sharedBankUpdates);
 }
 
 /**
- * Time-windowed micro-batcher: accumulates `update-member` writes for up to
+ * Time-windowed micro-batcher: accumulates `update` writes for up to
  * `BATCH_TIMEOUT_MS` (50ms) or until `BATCH_SIZE` (5000) items, whichever comes first, then
  * writes the whole batch in one pass (deduped, chunked, bulk-UPDATEd). `enqueue` never blocks on
  * the DB - callers get a fire-and-forget write, matching the REST route's immediate-200 contract.
