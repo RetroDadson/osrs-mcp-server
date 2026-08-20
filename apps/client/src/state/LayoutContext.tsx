@@ -9,14 +9,14 @@ interface LayoutContextValue {
 const LayoutContext = createContext<LayoutContextValue | undefined>(undefined);
 
 export function LayoutProvider({ children }: Readonly<{ children: ReactNode }>): React.JSX.Element {
-  const [direction, setDirectionState] = useState<LayoutDirection>(getLayoutDirection());
+  const [direction, setDirection] = useState<LayoutDirection>(getLayoutDirection());
 
-  const setDirection = useCallback((value: LayoutDirection) => {
+  const updateDirection = useCallback((value: LayoutDirection) => {
     persistLayoutDirection(value);
-    setDirectionState(value);
+    setDirection(value);
   }, []);
 
-  const value = useMemo(() => ({ direction, setDirection }), [direction, setDirection]);
+  const value = useMemo(() => ({ direction, setDirection: updateDirection }), [direction, updateDirection]);
 
   return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>;
 }
