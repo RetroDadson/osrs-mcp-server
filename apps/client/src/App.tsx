@@ -9,6 +9,7 @@ import { Login } from './pages/Login.js';
 import { Logout } from './pages/Logout.js';
 import { SetupInstructions } from './pages/SetupInstructions.js';
 import { LoginProvider } from './state/LoginContext.js';
+import { LayoutProvider } from './state/LayoutContext.js';
 
 const router = createBrowserRouter([
   {
@@ -35,9 +36,11 @@ const router = createBrowserRouter([
 export function App(): React.JSX.Element {
   return (
     <LoginProvider>
-      <ConfirmDialogProvider>
-        <RouterProvider router={router} />
-      </ConfirmDialogProvider>
+      <LayoutProvider>
+        <ConfirmDialogProvider>
+          <RouterProvider router={router} />
+        </ConfirmDialogProvider>
+      </LayoutProvider>
     </LoginProvider>
   );
 }

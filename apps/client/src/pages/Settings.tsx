@@ -1,13 +1,7 @@
 import { MemberRow } from '../components/MemberRow.js';
 import { useLogin } from '../state/LoginContext.js';
-import {
-  getLayoutDirection,
-  getTheme,
-  setLayoutDirection as persistLayoutDirection,
-  setTheme as persistTheme,
-  type LayoutDirection,
-  type Theme,
-} from '../state/storage.js';
+import { useLayoutDirection } from '../state/LayoutContext.js';
+import { getTheme, setTheme as persistTheme, type Theme } from '../state/storage.js';
 import { useState } from 'react';
 
 const MAX_MEMBERS = 5;
@@ -15,16 +9,11 @@ const MAX_MEMBERS = 5;
 export function Settings(): React.JSX.Element {
   const { members } = useLogin();
   const [theme, setTheme] = useState<Theme>(getTheme());
-  const [layout, setLayout] = useState<LayoutDirection>(getLayoutDirection());
+  const { direction: layout, setDirection: handleLayoutChange } = useLayoutDirection();
 
   function handleThemeChange(value: Theme): void {
     persistTheme(value);
     setTheme(value);
-  }
-
-  function handleLayoutChange(value: LayoutDirection): void {
-    persistLayoutDirection(value);
-    setLayout(value);
   }
 
   return (

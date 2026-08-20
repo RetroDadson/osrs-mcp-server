@@ -4,7 +4,7 @@ import { DonateButton } from './DonateButton.js';
 import { OtherApps } from './OtherApps.js';
 import { SocialLinks } from './SocialLinks.js';
 import { useLogin } from '../state/LoginContext.js';
-import { getLayoutDirection } from '../state/storage.js';
+import { useLayoutDirection } from '../state/LayoutContext.js';
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return isActive ? 'nav-link active' : 'nav-link';
@@ -19,7 +19,7 @@ export function AppShell(): React.JSX.Element {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(location.pathname);
-  const direction = getLayoutDirection();
+  const { direction } = useLayoutDirection();
 
   if (location.pathname !== lastPathname) {
     setLastPathname(location.pathname);

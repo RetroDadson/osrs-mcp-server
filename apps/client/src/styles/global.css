@@ -289,7 +289,9 @@ legend {
 }
 
 .setup-instructions__image {
-  max-width: 100%;
+  display: block;
+  max-width: min(480px, 100%);
+  margin-bottom: 1rem;
   border: 1px solid var(--border);
   border-radius: 6px;
 }
