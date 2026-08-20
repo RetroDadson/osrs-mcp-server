@@ -344,6 +344,15 @@ legend {
   color: var(--text);
 }
 
+.app-navigation__lower {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
 .app-shell__main {
   flex: 1;
   min-width: 0;

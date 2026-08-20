@@ -45,9 +45,11 @@ export function AppShell(): React.JSX.Element {
             </>
           )}
         </div>
-        <SocialLinks />
         <OtherApps />
-        <DonateButton />
+        <div className="app-navigation__lower">
+          <SocialLinks />
+          <DonateButton />
+        </div>
       </nav>
       <main className="app-shell__main">
         <Outlet />
