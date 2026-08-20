@@ -1,96 +1,87 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SHARED_MEMBER } from '@osrs-mcp/shared';
 import { getLoginData } from '../src/db/login-data.js';
-import { createLogin, getLoginIdByToken } from '../src/db/logins.js';
 import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
 
 const EPOCH = new Date(0);
 
 describe('getLoginData', () => {
   let testDb: TestDb;
-  let loginId: string;
 
   beforeAll(async () => {
     testDb = await startTestDb();
-    const login = await testDb.db
-      .insertInto('logins')
-      .values({ login_name: 'gdtest', token_hash: 'h' })
-      .returning('login_id')
-      .executeTakeFirstOrThrow();
-    loginId = login.login_id;
   }, 60_000);
 
   afterAll(async () => {
     await stopTestDb(testDb);
   });
 
+  async function insertLogin(name: string): Promise<string> {
+    const login = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: name, token_hash: `hash-${name}` })
+      .returning('login_id')
+      .executeTakeFirstOrThrow();
+    return login.login_id;
+  }
+
   it('returns undefined for fields that were never set', async () => {
-    await testDb.db.insertInto('members').values({ login_id: loginId, member_name: 'Bare' }).execute();
+    const loginId = await insertLogin('Bare');
 
-    const bare = (await getLoginData(testDb.db, loginId, EPOCH)).find((m) => m.name === 'Bare');
+    const snapshot = await getLoginData(testDb.db, loginId, EPOCH);
 
-    expect(bare).toBeDefined();
-    expect(bare?.stats).toBeUndefined();
-    expect(bare?.shared_bank).toBeUndefined();
-    expect(bare?.deposited).toBeUndefined();
+    expect(snapshot).toBeDefined();
+    expect(snapshot?.stats).toBeUndefined();
+    expect(snapshot?.shared_bank).toBeUndefined();
+    expect(snapshot?.deposited).toBeUndefined();
+  });
+
+  it('returns undefined when the login does not exist', async () => {
+    expect(await getLoginData(testDb.db, '999999999', EPOCH)).toBeUndefined();
   });
 
   it('returns a field once set, and maps quests bytea to a plain number array', async () => {
-    const inserted = await testDb.db
-      .insertInto('members')
-      .values({ login_id: loginId, member_name: 'WithData' })
-      .returning('member_id')
-      .executeTakeFirstOrThrow();
+    const loginId = await insertLogin('WithData');
 
     await testDb.db
-      .updateTable('members')
+      .updateTable('logins')
       .set({ stats: [1, 2, 3, 4, 5, 6, 7], quests: Buffer.from([0, 1, 2, 255]) })
-      .where('member_id', '=', inserted.member_id)
+      .where('login_id', '=', loginId)
       .execute();
 
-    const member = (await getLoginData(testDb.db, loginId, EPOCH)).find((m) => m.name === 'WithData');
-    expect(member?.stats).toEqual([1, 2, 3, 4, 5, 6, 7]);
-    expect(member?.quests).toEqual([0, 1, 2, 255]);
+    const snapshot = await getLoginData(testDb.db, loginId, EPOCH);
+    expect(snapshot?.stats).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(snapshot?.quests).toEqual([0, 1, 2, 255]);
+  });
+
+  it('returns the real shared_bank value, not a hardcoded stub', async () => {
+    const loginId = await insertLogin('SharedBankTest');
+
+    await testDb.db.updateTable('logins').set({ shared_bank: [10, 20] }).where('login_id', '=', loginId).execute();
+
+    const snapshot = await getLoginData(testDb.db, loginId, EPOCH);
+    expect(snapshot?.shared_bank).toEqual([10, 20]);
   });
 
   it('omits fields updated before the `since` cutoff (incremental fetch)', async () => {
-    const inserted = await testDb.db
-      .insertInto('members')
-      .values({ login_id: loginId, member_name: 'Incremental' })
-      .returning('member_id')
-      .executeTakeFirstOrThrow();
+    const loginId = await insertLogin('Incremental');
 
-    await testDb.db
-      .updateTable('members')
-      .set({ skills: new Array(24).fill(0) })
-      .where('member_id', '=', inserted.member_id)
-      .execute();
+    await testDb.db.updateTable('logins').set({ skills: new Array(24).fill(0) }).where('login_id', '=', loginId).execute();
 
     const future = new Date(Date.now() + 60_000);
-    const member = (await getLoginData(testDb.db, loginId, future)).find((m) => m.name === 'Incremental');
-    expect(member?.skills).toBeUndefined();
+    const futureSnapshot = await getLoginData(testDb.db, loginId, future);
+    expect(futureSnapshot?.skills).toBeUndefined();
 
     const past = new Date(0);
-    const memberFromEpoch = (await getLoginData(testDb.db, loginId, past)).find((m) => m.name === 'Incremental');
-    expect(memberFromEpoch?.skills).toEqual(new Array(24).fill(0));
+    const pastSnapshot = await getLoginData(testDb.db, loginId, past);
+    expect(pastSnapshot?.skills).toEqual(new Array(24).fill(0));
   });
 
   it('returns account_type regardless of the since cutoff (not trigger-gated)', async () => {
-    await testDb.db
-      .insertInto('members')
-      .values({ login_id: loginId, member_name: 'AccountTyped', account_type: 'ironman' })
-      .execute();
+    const loginId = await insertLogin('AccountTyped');
+    await testDb.db.updateTable('logins').set({ account_type: 'ironman' }).where('login_id', '=', loginId).execute();
 
     const future = new Date(Date.now() + 60_000);
-    const member = (await getLoginData(testDb.db, loginId, future)).find((m) => m.name === 'AccountTyped');
-    expect(member?.account_type).toBe('ironman');
-  });
-
-  it('includes the @SHARED member like any other row (createLogin seeds one per login)', async () => {
-    await createLogin(testDb.db, { name: 'sharedtest', memberNames: ['realmember'], tokenHash: 'sharedhash' });
-    const sharedLoginId = await getLoginIdByToken(testDb.db, 'sharedtest', 'sharedhash');
-
-    const members = await getLoginData(testDb.db, sharedLoginId!, EPOCH);
-    expect(members.some((m) => m.name === SHARED_MEMBER)).toBe(true);
+    const snapshot = await getLoginData(testDb.db, loginId, future);
+    expect(snapshot?.account_type).toBe('ironman');
   });
 });

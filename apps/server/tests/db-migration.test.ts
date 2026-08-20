@@ -28,7 +28,6 @@ describe('baseline migration', () => {
       'hiscore_activities',
       'item_metadata',
       'logins',
-      'members',
       'skills_day',
       'skills_month',
       'skills_year',
@@ -49,33 +48,7 @@ describe('baseline migration', () => {
     expect(row).toBeDefined();
   });
 
-  it('treats member_name as case-insensitive (citext)', async () => {
-    const login = await testDb.db
-      .insertInto('logins')
-      .values({ login_name: 'citext-test', token_hash: 'hash' })
-      .returning('login_id')
-      .executeTakeFirstOrThrow();
-
-    await testDb.db.insertInto('members').values({ login_id: login.login_id, member_name: 'Zezima' }).execute();
-
-    const found = await testDb.db
-      .selectFrom('members')
-      .selectAll()
-      .where('login_id', '=', login.login_id)
-      .where('member_name', '=', 'ZEZIMA')
-      .executeTakeFirst();
-
-    expect(found).toBeDefined();
-    expect(found?.member_name).toBe('Zezima');
-  });
-
   it('round-trips a jsonb slayer_task snapshot', async () => {
-    const login = await testDb.db
-      .insertInto('logins')
-      .values({ login_name: 'jsonb-test', token_hash: 'hash' })
-      .returning('login_id')
-      .executeTakeFirstOrThrow();
-
     const slayerTask = {
       task: 'Gargoyles',
       amount_remaining: 5,
@@ -85,13 +58,14 @@ describe('baseline migration', () => {
       wilderness_streak: 0,
     };
 
-    await testDb.db
-      .insertInto('members')
-      .values({ login_id: login.login_id, member_name: 'JsonbMember', slayer_task: slayerTask })
-      .execute();
+    const login = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: 'jsonb-test', token_hash: 'hash', slayer_task: slayerTask })
+      .returning('login_id')
+      .executeTakeFirstOrThrow();
 
     const found = await testDb.db
-      .selectFrom('members')
+      .selectFrom('logins')
       .select('slayer_task')
       .where('login_id', '=', login.login_id)
       .executeTakeFirstOrThrow();
@@ -116,6 +90,7 @@ describe('baseline migration', () => {
     'inventory',
     'equipment',
     'bank',
+    'shared_bank',
     'rune_pouch',
     'seed_vault',
     'diary_vars',
@@ -123,61 +98,55 @@ describe('baseline migration', () => {
     'potion_storage',
     'combat_achievements',
   ] as const)('stamps %s_last_update only when %s actually changes', async (column) => {
-    const login = await testDb.db
+    // The trigger only fires on UPDATE (matching the batcher's real write path - logins are
+    // created bare, then populated), so *_last_update starts NULL right after INSERT.
+    const inserted = await testDb.db
       .insertInto('logins')
-      .values({ login_name: `trigger-test-${column}`, token_hash: 'hash' })
+      .values({ login_name: `trigger-test-${column}`, token_hash: `hash-${column}` })
       .returning('login_id')
       .executeTakeFirstOrThrow();
 
-    // The trigger only fires on UPDATE (matching the batcher's real write path - members are
-    // created bare, then populated), so *_last_update starts NULL right after INSERT.
-    const inserted = await testDb.db
-      .insertInto('members')
-      .values({ login_id: login.login_id, member_name: 'TriggerMember' })
-      .returning('member_id')
-      .executeTakeFirstOrThrow();
-
     await testDb.db
-      .updateTable('members')
+      .updateTable('logins')
       .set({ [column]: [1, 2, 3] })
-      .where('member_id', '=', inserted.member_id)
+      .where('login_id', '=', inserted.login_id)
       .execute();
 
-    const member = await testDb.db
-      .selectFrom('members')
-      .select(['member_id', `${column}_last_update` as never])
-      .where('member_id', '=', inserted.member_id)
+    const login = await testDb.db
+      .selectFrom('logins')
+      .select(['login_id', `${column}_last_update` as never])
+      .where('login_id', '=', inserted.login_id)
       .executeTakeFirstOrThrow();
 
-    const firstStamp = (member as Record<string, unknown>)[`${column}_last_update`];
+    const firstStamp = (login as Record<string, unknown>)[`${column}_last_update`];
     expect(firstStamp).not.toBeNull();
 
     // Updating an unrelated column must NOT move this column's timestamp.
     await testDb.db
-      .updateTable('members')
+      .updateTable('logins')
       .set({ account_type: 'ironman' })
-      .where('member_id', '=', member.member_id)
+      .where('login_id', '=', login.login_id)
       .execute();
 
     const afterUnrelatedUpdate = await testDb.db
-      .selectFrom('members')
+      .selectFrom('logins')
       .select(`${column}_last_update` as never)
-      .where('member_id', '=', member.member_id)
+      .where('login_id', '=', login.login_id)
       .executeTakeFirstOrThrow();
     expect((afterUnrelatedUpdate as Record<string, unknown>)[`${column}_last_update`]).toEqual(firstStamp);
 
     // Updating the column itself to a genuinely different value DOES move the timestamp.
     await new Promise((r) => setTimeout(r, 5));
     await testDb.db
-      .updateTable('members')
+      .updateTable('logins')
       .set({ [column]: [9, 9, 9] })
-      .where('member_id', '=', member.member_id)
+      .where('login_id', '=', login.login_id)
       .execute();
 
     const afterRealUpdate = await testDb.db
-      .selectFrom('members')
+      .selectFrom('logins')
       .select(`${column}_last_update` as never)
-      .where('member_id', '=', member.member_id)
+      .where('login_id', '=', login.login_id)
       .executeTakeFirstOrThrow();
     expect((afterRealUpdate as Record<string, unknown>)[`${column}_last_update`]).not.toEqual(firstStamp);
   });
