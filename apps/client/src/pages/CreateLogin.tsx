@@ -89,7 +89,7 @@ export function CreateLogin(): React.JSX.Element {
 
   return (
     <div className="page-container">
-      <form className="create-login rsborder rsbackground" onSubmit={handleSubmit}>
+      <form className="create-login panel" onSubmit={handleSubmit}>
         <h3>Get started</h3>
 
         <LabeledInput

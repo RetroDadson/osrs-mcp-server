@@ -12,9 +12,11 @@ export function SetupInstructions(): React.JSX.Element {
   }
 
   return (
-    <div className="page-container">
-      <div className="setup-instructions rsborder rsbackground">
-        <h3>Setup instructions</h3>
+    <div className="page">
+      <div className="page-header">
+        <h1>Setup instructions</h1>
+      </div>
+      <div className="panel">
         <p>
           Install the <strong>OSRS MCP Tracker</strong> RuneLite plugin, then paste these credentials into its config
           panel:
@@ -25,7 +27,7 @@ export function SetupInstructions(): React.JSX.Element {
         <p>
           Token:{' '}
           {tokenRevealed ? (
-            <strong>{token}</strong>
+            <strong className="token-value">{token}</strong>
           ) : (
             <button type="button" className="reveal-token" onClick={() => setTokenRevealed(true)}>
               Click to show

@@ -1,16 +1,16 @@
 import { Link } from 'react-router-dom';
 import { MenButton } from '../components/MenButton.js';
-import { SocialLinks } from '../components/SocialLinks.js';
 import { useLogin } from '../state/LoginContext.js';
 
 export function Home(): React.JSX.Element {
   const { isAuthenticated } = useLogin();
 
   return (
-    <div className="page-container">
-      <SocialLinks />
-      <div className="home__container">
+    <div className="page">
+      <div className="home-hero">
         <h1>OSRS MCP</h1>
+      </div>
+      <div className="panel">
         <div className="home__links">
           <Link to="/create-login">
             <MenButton>Get started</MenButton>

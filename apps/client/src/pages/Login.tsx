@@ -34,7 +34,7 @@ export function Login(): React.JSX.Element {
 
   return (
     <div className="page-container">
-      <form className="login-page rsborder rsbackground" onSubmit={handleSubmit}>
+      <form className="login-page panel" onSubmit={handleSubmit}>
         <h3>Login</h3>
         <LabeledInput
           id="login-name-input"

@@ -5,6 +5,6 @@ import { App } from './App.js';
 describe('App', () => {
   it('renders the home page at the root route', () => {
     render(<App />);
-    expect(screen.getByText('OSRS MCP')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'OSRS MCP' })).toBeInTheDocument();
   });
 });

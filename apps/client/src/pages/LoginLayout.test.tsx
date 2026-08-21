@@ -23,7 +23,7 @@ describe('LoginLayout', () => {
     expect(screen.getByText('Login page')).toBeInTheDocument();
   });
 
-  it('loads members and renders the nav with the login name', async () => {
+  it('loads members and renders the outlet once loading completes', async () => {
     storeLogin('mylogin', 'mytoken');
     vi.mocked(api.getLoginData).mockResolvedValue([{ name: 'alice' }, { name: '@SHARED' }]);
 
@@ -36,7 +36,7 @@ describe('LoginLayout', () => {
       ['/manage'],
     );
 
-    expect(screen.getByText('mylogin')).toBeInTheDocument();
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
     expect(await screen.findByText('Login content')).toBeInTheDocument();
   });
 });

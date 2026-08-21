@@ -3,12 +3,15 @@ import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfirmDialogProvider } from '../src/components/ConfirmDialog.js';
 import { LoginProvider } from '../src/state/LoginContext.js';
+import { LayoutProvider } from '../src/state/LayoutContext.js';
 
 function AllProviders({ children, initialEntries }: { children: ReactNode; initialEntries?: string[] }) {
   return (
     <MemoryRouter initialEntries={initialEntries ?? ['/']}>
       <LoginProvider>
-        <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
+        <LayoutProvider>
+          <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
+        </LayoutProvider>
       </LoginProvider>
     </MemoryRouter>
   );
