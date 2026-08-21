@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { MenButton } from '../components/MenButton.js';
+import { Navigate } from 'react-router-dom';
 import { SyncStatusPanel } from '../components/SyncStatusPanel.js';
 import { useLogin } from '../state/LoginContext.js';
 
@@ -37,9 +36,6 @@ export function SetupInstructions(): React.JSX.Element {
         <img src="/images/config_panel.png" alt="RuneLite plugin config panel" className="setup-instructions__image" />
       </div>
       <SyncStatusPanel />
-      <Link to="/manage">
-        <MenButton>Continue</MenButton>
-      </Link>
     </div>
   );
 }
