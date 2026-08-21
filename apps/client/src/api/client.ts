@@ -58,3 +58,17 @@ export async function renameLogin(token: string, newName: string): Promise<void>
     throw new ApiError(res.status, (body as { message?: string }).message ?? 'Failed to rename login');
   }
 }
+
+export interface SyncStatus {
+  /** ISO timestamp of the most recent field update, or undefined if the plugin has never submitted data. */
+  lastUpdated: string | undefined;
+}
+
+export async function getSyncStatus(token: string): Promise<SyncStatus> {
+  const res = await request('/get-data?from_time=1970-01-01T00:00:00.000Z', { headers: authHeaders(token) });
+  if (!res.ok) {
+    throw new ApiError(res.status, 'Failed to fetch sync status');
+  }
+  const body = (await res.json()) as { last_updated?: string };
+  return { lastUpdated: body.last_updated };
+}

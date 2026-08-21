@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { amILoggedIn, ApiError, createLogin, getCaptchaConfig, renameLogin } from './client.js';
+import { amILoggedIn, ApiError, createLogin, getCaptchaConfig, getSyncStatus, renameLogin } from './client.js';
 
 function mockFetchOnce(status: number, body: unknown): void {
   vi.stubGlobal(
@@ -64,5 +64,18 @@ describe('api client', () => {
   it('renameLogin resolves on success', async () => {
     mockFetchOnce(200, {});
     await expect(renameLogin('t', 'newname')).resolves.toBeUndefined();
+  });
+
+  it('getSyncStatus returns the last_updated field, undefined when never synced', async () => {
+    mockFetchOnce(200, { name: 'g', last_updated: '2026-01-01T12:00:00.000Z' });
+    expect(await getSyncStatus('t')).toEqual({ lastUpdated: '2026-01-01T12:00:00.000Z' });
+
+    mockFetchOnce(200, { name: 'g' });
+    expect(await getSyncStatus('t')).toEqual({ lastUpdated: undefined });
+  });
+
+  it('getSyncStatus throws ApiError on failure', async () => {
+    mockFetchOnce(401, {});
+    await expect(getSyncStatus('wrong')).rejects.toThrow(ApiError);
   });
 });

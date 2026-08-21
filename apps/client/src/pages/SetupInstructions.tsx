@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { MenButton } from '../components/MenButton.js';
+import { SyncStatusPanel } from '../components/SyncStatusPanel.js';
 import { useLogin } from '../state/LoginContext.js';
 
 export function SetupInstructions(): React.JSX.Element {
@@ -34,10 +35,11 @@ export function SetupInstructions(): React.JSX.Element {
           You&apos;re tracking as <strong>{loginName}</strong>.
         </p>
         <img src="/images/config_panel.png" alt="RuneLite plugin config panel" className="setup-instructions__image" />
-        <Link to="/manage">
-          <MenButton>Continue</MenButton>
-        </Link>
       </div>
+      <SyncStatusPanel />
+      <Link to="/manage">
+        <MenButton>Continue</MenButton>
+      </Link>
     </div>
   );
 }
