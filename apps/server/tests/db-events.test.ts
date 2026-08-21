@@ -16,7 +16,7 @@ import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
 
 describe('events', () => {
   let testDb: TestDb;
-  let memberId: string;
+  let loginId: string;
 
   beforeAll(async () => {
     testDb = await startTestDb();
@@ -25,12 +25,7 @@ describe('events', () => {
       .values({ login_name: 'eventstest', token_hash: 'h' })
       .returning('login_id')
       .executeTakeFirstOrThrow();
-    const member = await testDb.db
-      .insertInto('members')
-      .values({ login_id: login.login_id, member_name: 'EventMember' })
-      .returning('member_id')
-      .executeTakeFirstOrThrow();
-    memberId = member.member_id;
+    loginId = login.login_id;
   }, 60_000);
 
   afterAll(async () => {
@@ -38,69 +33,69 @@ describe('events', () => {
   });
 
   it('records slayer task completions as independent rows, most recent first', async () => {
-    await recordSlayerTaskCompletion(testDb.db, memberId, {
+    await recordSlayerTaskCompletion(testDb.db, loginId, {
       task: 'Gargoyles',
       master: 'Duradel',
       amountCompleted: 130,
       outcome: 'completed',
     });
-    await recordSlayerTaskCompletion(testDb.db, memberId, {
+    await recordSlayerTaskCompletion(testDb.db, loginId, {
       task: 'Cows',
       master: null,
       amountCompleted: 5,
       outcome: 'skipped',
     });
 
-    const history = await getSlayerTaskHistory(testDb.db, memberId, 20);
+    const history = await getSlayerTaskHistory(testDb.db, loginId, 20);
     expect(history).toHaveLength(2);
     expect(history[0]?.task).toBe('Cows');
     expect(history[1]?.master).toBe('Duradel');
   });
 
   it('respects the limit parameter', async () => {
-    const history = await getSlayerTaskHistory(testDb.db, memberId, 1);
+    const history = await getSlayerTaskHistory(testDb.db, loginId, 1);
     expect(history).toHaveLength(1);
   });
 
   it('records clue completions and filters by tier', async () => {
-    await recordClueCompletion(testDb.db, memberId, 'easy');
-    await recordClueCompletion(testDb.db, memberId, 'master');
+    await recordClueCompletion(testDb.db, loginId, 'easy');
+    await recordClueCompletion(testDb.db, loginId, 'master');
 
-    const all = await getClueCompletions(testDb.db, memberId, undefined, 20);
+    const all = await getClueCompletions(testDb.db, loginId, undefined, 20);
     expect(all.length).toBeGreaterThanOrEqual(2);
 
-    const masterOnly = await getClueCompletions(testDb.db, memberId, 'master', 20);
+    const masterOnly = await getClueCompletions(testDb.db, loginId, 'master', 20);
     expect(masterOnly.every((c) => c.tier === 'master')).toBe(true);
   });
 
   it('records deaths with optional location/killer fields', async () => {
-    await recordDeath(testDb.db, memberId, { worldX: 3200, worldY: 3200, plane: 0, killer: 'Gargoyle' });
-    await recordDeath(testDb.db, memberId, { worldX: null, worldY: null, plane: null, killer: null });
+    await recordDeath(testDb.db, loginId, { worldX: 3200, worldY: 3200, plane: 0, killer: 'Gargoyle' });
+    await recordDeath(testDb.db, loginId, { worldX: null, worldY: null, plane: null, killer: null });
 
-    const deaths = await getDeaths(testDb.db, memberId, 20);
+    const deaths = await getDeaths(testDb.db, loginId, 20);
     expect(deaths).toHaveLength(2);
     expect(deaths.some((d) => d.killer === 'Gargoyle')).toBe(true);
     expect(deaths.some((d) => d.killer === null)).toBe(true);
   });
 
   it('upserts hiscore activities without duplicating (overwrite-not-insert on conflict)', async () => {
-    await upsertHiscoreActivity(testDb.db, memberId, 'Zulrah', 100);
-    await upsertHiscoreActivity(testDb.db, memberId, 'Zulrah', 150);
+    await upsertHiscoreActivity(testDb.db, loginId, 'Zulrah', 100);
+    await upsertHiscoreActivity(testDb.db, loginId, 'Zulrah', 150);
 
-    const activities = await getHiscoreActivities(testDb.db, memberId);
+    const activities = await getHiscoreActivities(testDb.db, loginId);
     expect(activities.Zulrah).toBe(150);
   });
 
   it('updateAccountType stamps account_type_last_checked', async () => {
-    await updateAccountType(testDb.db, memberId, 'hardcore_ironman');
-    const member = await testDb.db
-      .selectFrom('members')
+    await updateAccountType(testDb.db, loginId, 'hardcore_ironman');
+    const login = await testDb.db
+      .selectFrom('logins')
       .select(['account_type', 'account_type_last_checked'])
-      .where('member_id', '=', memberId)
+      .where('login_id', '=', loginId)
       .executeTakeFirstOrThrow();
 
-    expect(member.account_type).toBe('hardcore_ironman');
-    expect(member.account_type_last_checked).not.toBeNull();
+    expect(login.account_type).toBe('hardcore_ironman');
+    expect(login.account_type_last_checked).not.toBeNull();
   });
 
   it('upserts item metadata without duplicating', async () => {

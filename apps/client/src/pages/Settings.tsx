@@ -1,19 +1,34 @@
-import { MemberRow } from '../components/MemberRow.js';
+import { useState } from 'react';
+import { ApiError, renameLogin } from '../api/client.js';
+import { LabeledInput } from '../components/LabeledInput.js';
+import { MenButton } from '../components/MenButton.js';
 import { useLogin } from '../state/LoginContext.js';
 import { useLayoutDirection } from '../state/LayoutContext.js';
-import { getTheme, setTheme as persistTheme, type Theme } from '../state/storage.js';
-import { useState } from 'react';
-
-const MAX_MEMBERS = 5;
+import { validateOsrsName } from '../utils/validation.js';
 
 export function Settings(): React.JSX.Element {
-  const { members } = useLogin();
-  const [theme, setTheme] = useState<Theme>(getTheme());
+  const { loginName, token, setCredentials } = useLogin();
   const { direction: layout, setDirection: handleLayoutChange } = useLayoutDirection();
+  const [newName, setNewName] = useState(loginName ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function handleThemeChange(value: Theme): void {
-    persistTheme(value);
-    setTheme(value);
+  async function handleRename(event: React.FormEvent): Promise<void> {
+    event.preventDefault();
+    setError(null);
+
+    const trimmed = newName.trim();
+    if (validateOsrsName(trimmed) || trimmed === loginName) return;
+
+    setBusy(true);
+    try {
+      await renameLogin(token!, trimmed);
+      setCredentials(trimmed, token!);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to rename.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -22,32 +37,27 @@ export function Settings(): React.JSX.Element {
         <h1>Settings</h1>
       </div>
       <div className="login-settings">
-        <section className="login-settings__members panel">
-          <h3>Member settings</h3>
-          {members.map((member, index) => (
-            <MemberRow key={member.name} member={member.name} memberNumber={index + 1} />
-          ))}
-          {members.length < MAX_MEMBERS && <MemberRow memberNumber={members.length + 1} />}
+        <section className="login-settings__character panel">
+          <h3>Character name</h3>
+          <form onSubmit={handleRename} className="rename-character">
+            <LabeledInput
+              id="login-name-input"
+              label="Your OSRS name"
+              placeholder="Your OSRS name"
+              maxLength={16}
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              validate={validateOsrsName}
+            />
+            <MenButton type="submit" disabled={busy || newName.trim() === loginName}>
+              Rename
+            </MenButton>
+          </form>
+          {error && <div className="validation-error">{error}</div>}
         </section>
 
         <section className="login-settings__appearance panel">
           <h3>Appearance settings</h3>
-          <fieldset>
-            <legend>Theme</legend>
-            <label>
-              <input
-                type="radio"
-                name="theme"
-                checked={theme === 'light'}
-                onChange={() => handleThemeChange('light')}
-              />{' '}
-              Light
-            </label>
-            <label>
-              <input type="radio" name="theme" checked={theme === 'dark'} onChange={() => handleThemeChange('dark')} />{' '}
-              Dark
-            </label>
-          </fieldset>
           <fieldset>
             <legend>Dock panels</legend>
             <label>

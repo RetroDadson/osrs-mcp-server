@@ -10,13 +10,13 @@ export interface SlayerTaskCompletionInput {
 
 export async function recordSlayerTaskCompletion(
   db: Kysely<Database>,
-  memberId: string,
+  loginId: string,
   input: SlayerTaskCompletionInput,
 ): Promise<void> {
   await db
     .insertInto('slayer_task_history')
     .values({
-      member_id: memberId,
+      login_id: loginId,
       task: input.task,
       master: input.master,
       amount_completed: input.amountCompleted,
@@ -25,8 +25,8 @@ export async function recordSlayerTaskCompletion(
     .execute();
 }
 
-export async function recordClueCompletion(db: Kysely<Database>, memberId: string, tier: string): Promise<void> {
-  await db.insertInto('clue_completions').values({ member_id: memberId, tier }).execute();
+export async function recordClueCompletion(db: Kysely<Database>, loginId: string, tier: string): Promise<void> {
+  await db.insertInto('clue_completions').values({ login_id: loginId, tier }).execute();
 }
 
 export interface DeathInput {
@@ -36,31 +36,31 @@ export interface DeathInput {
   killer: string | null;
 }
 
-export async function recordDeath(db: Kysely<Database>, memberId: string, input: DeathInput): Promise<void> {
+export async function recordDeath(db: Kysely<Database>, loginId: string, input: DeathInput): Promise<void> {
   await db
     .insertInto('deaths')
-    .values({ member_id: memberId, world_x: input.worldX, world_y: input.worldY, plane: input.plane, killer: input.killer })
+    .values({ login_id: loginId, world_x: input.worldX, world_y: input.worldY, plane: input.plane, killer: input.killer })
     .execute();
 }
 
 export async function upsertHiscoreActivity(
   db: Kysely<Database>,
-  memberId: string,
+  loginId: string,
   activityName: string,
   score: number,
 ): Promise<void> {
   await db
     .insertInto('hiscore_activities')
-    .values({ member_id: memberId, activity_name: activityName, score })
-    .onConflict((oc) => oc.columns(['member_id', 'activity_name']).doUpdateSet({ score, last_updated: new Date() }))
+    .values({ login_id: loginId, activity_name: activityName, score })
+    .onConflict((oc) => oc.columns(['login_id', 'activity_name']).doUpdateSet({ score, last_updated: new Date() }))
     .execute();
 }
 
-export async function updateAccountType(db: Kysely<Database>, memberId: string, accountType: string): Promise<void> {
+export async function updateAccountType(db: Kysely<Database>, loginId: string, accountType: string): Promise<void> {
   await db
-    .updateTable('members')
+    .updateTable('logins')
     .set({ account_type: accountType, account_type_last_checked: new Date() })
-    .where('member_id', '=', memberId)
+    .where('login_id', '=', loginId)
     .execute();
 }
 
@@ -107,13 +107,13 @@ export interface SlayerTaskHistoryEntry {
 
 export async function getSlayerTaskHistory(
   db: Kysely<Database>,
-  memberId: string,
+  loginId: string,
   limit: number,
 ): Promise<SlayerTaskHistoryEntry[]> {
   const rows = await db
     .selectFrom('slayer_task_history')
     .select(['task', 'master', 'amount_completed', 'outcome', 'completed_at'])
-    .where('member_id', '=', memberId)
+    .where('login_id', '=', loginId)
     .orderBy('completed_at', 'desc')
     .limit(limit)
     .execute();
@@ -134,14 +134,14 @@ export interface ClueCompletionEntry {
 
 export async function getClueCompletions(
   db: Kysely<Database>,
-  memberId: string,
+  loginId: string,
   tier: string | undefined,
   limit: number,
 ): Promise<ClueCompletionEntry[]> {
   let query = db
     .selectFrom('clue_completions')
     .select(['tier', 'completed_at'])
-    .where('member_id', '=', memberId)
+    .where('login_id', '=', loginId)
     .orderBy('completed_at', 'desc')
     .limit(limit);
 
@@ -161,11 +161,11 @@ export interface DeathEntry {
   killer: string | null;
 }
 
-export async function getDeaths(db: Kysely<Database>, memberId: string, limit: number): Promise<DeathEntry[]> {
+export async function getDeaths(db: Kysely<Database>, loginId: string, limit: number): Promise<DeathEntry[]> {
   const rows = await db
     .selectFrom('deaths')
     .select(['died_at', 'world_x', 'world_y', 'plane', 'killer'])
-    .where('member_id', '=', memberId)
+    .where('login_id', '=', loginId)
     .orderBy('died_at', 'desc')
     .limit(limit)
     .execute();
@@ -173,11 +173,11 @@ export async function getDeaths(db: Kysely<Database>, memberId: string, limit: n
   return rows.map((r) => ({ diedAt: r.died_at, worldX: r.world_x, worldY: r.world_y, plane: r.plane, killer: r.killer }));
 }
 
-export async function getHiscoreActivities(db: Kysely<Database>, memberId: string): Promise<Record<string, number>> {
+export async function getHiscoreActivities(db: Kysely<Database>, loginId: string): Promise<Record<string, number>> {
   const rows = await db
     .selectFrom('hiscore_activities')
     .select(['activity_name', 'score'])
-    .where('member_id', '=', memberId)
+    .where('login_id', '=', loginId)
     .execute();
 
   const result: Record<string, number> = {};

@@ -17,6 +17,7 @@ const TRIGGERED_COLUMNS = [
   'equipment',
   'rune_pouch',
   'bank',
+  'shared_bank',
   'seed_vault',
   'interacting',
   'diary_vars',
@@ -29,7 +30,6 @@ const TRIGGERED_COLUMNS = [
 
 export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`CREATE SCHEMA IF NOT EXISTS osrsmcp`.execute(db);
-  await sql`CREATE EXTENSION IF NOT EXISTS citext`.execute(db);
 
   await sql`
     CREATE TABLE osrsmcp.logins (
@@ -37,15 +37,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       login_name TEXT NOT NULL,
       token_hash TEXT NOT NULL,
       version INTEGER NOT NULL DEFAULT 2,
-      UNIQUE (login_name, token_hash)
-    )
-  `.execute(db);
-
-  await sql`
-    CREATE TABLE osrsmcp.members (
-      member_id BIGSERIAL PRIMARY KEY,
-      login_id BIGINT NOT NULL REFERENCES osrsmcp.logins (login_id) ON DELETE CASCADE,
-      member_name CITEXT NOT NULL,
+      UNIQUE (token_hash),
 
       stats_last_update TIMESTAMPTZ,
       stats INTEGER[],
@@ -70,6 +62,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
       bank_last_update TIMESTAMPTZ,
       bank INTEGER[],
+
+      shared_bank_last_update TIMESTAMPTZ,
+      shared_bank INTEGER[],
 
       seed_vault_last_update TIMESTAMPTZ,
       seed_vault INTEGER[],
@@ -100,15 +95,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     )
   `.execute(db);
 
-  await sql`CREATE UNIQUE INDEX members_login_id_name_idx ON osrsmcp.members (login_id, member_name)`.execute(db);
-
   for (const period of ['day', 'month', 'year'] as const) {
     await sql`
       CREATE TABLE ${sql.raw(`osrsmcp.skills_${period}`)} (
-        member_id BIGINT NOT NULL REFERENCES osrsmcp.members (member_id) ON DELETE CASCADE,
+        login_id BIGINT NOT NULL REFERENCES osrsmcp.logins (login_id) ON DELETE CASCADE,
         time TIMESTAMPTZ NOT NULL,
         skills INTEGER[] NOT NULL,
-        PRIMARY KEY (member_id, time)
+        PRIMARY KEY (login_id, time)
       )
     `.execute(db);
   }
@@ -124,7 +117,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`
     CREATE TABLE osrsmcp.slayer_task_history (
       id BIGSERIAL PRIMARY KEY,
-      member_id BIGINT NOT NULL REFERENCES osrsmcp.members (member_id) ON DELETE CASCADE,
+      login_id BIGINT NOT NULL REFERENCES osrsmcp.logins (login_id) ON DELETE CASCADE,
       task TEXT NOT NULL,
       master TEXT,
       amount_completed INTEGER NOT NULL,
@@ -133,35 +126,35 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     )
   `.execute(db);
   await sql`
-    CREATE INDEX slayer_task_history_member_idx ON osrsmcp.slayer_task_history (member_id, completed_at DESC)
+    CREATE INDEX slayer_task_history_login_idx ON osrsmcp.slayer_task_history (login_id, completed_at DESC)
   `.execute(db);
 
   await sql`
     CREATE TABLE osrsmcp.hiscore_activities (
-      member_id BIGINT NOT NULL REFERENCES osrsmcp.members (member_id) ON DELETE CASCADE,
+      login_id BIGINT NOT NULL REFERENCES osrsmcp.logins (login_id) ON DELETE CASCADE,
       activity_name TEXT NOT NULL,
       score INTEGER NOT NULL,
       last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (member_id, activity_name)
+      PRIMARY KEY (login_id, activity_name)
     )
   `.execute(db);
 
   await sql`
     CREATE TABLE osrsmcp.clue_completions (
       id BIGSERIAL PRIMARY KEY,
-      member_id BIGINT NOT NULL REFERENCES osrsmcp.members (member_id) ON DELETE CASCADE,
+      login_id BIGINT NOT NULL REFERENCES osrsmcp.logins (login_id) ON DELETE CASCADE,
       tier TEXT NOT NULL,
       completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `.execute(db);
   await sql`
-    CREATE INDEX clue_completions_member_idx ON osrsmcp.clue_completions (member_id, tier, completed_at DESC)
+    CREATE INDEX clue_completions_login_idx ON osrsmcp.clue_completions (login_id, tier, completed_at DESC)
   `.execute(db);
 
   await sql`
     CREATE TABLE osrsmcp.deaths (
       id BIGSERIAL PRIMARY KEY,
-      member_id BIGINT NOT NULL REFERENCES osrsmcp.members (member_id) ON DELETE CASCADE,
+      login_id BIGINT NOT NULL REFERENCES osrsmcp.logins (login_id) ON DELETE CASCADE,
       died_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       world_x INTEGER,
       world_y INTEGER,
@@ -169,7 +162,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       killer TEXT
     )
   `.execute(db);
-  await sql`CREATE INDEX deaths_member_idx ON osrsmcp.deaths (member_id, died_at DESC)`.execute(db);
+  await sql`CREATE INDEX deaths_login_idx ON osrsmcp.deaths (login_id, died_at DESC)`.execute(db);
 
   await sql`
     CREATE TABLE osrsmcp.item_metadata (
@@ -196,7 +189,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
     await sql`
       CREATE TRIGGER ${sql.raw(`set_${column}_timestamp`)}
-      BEFORE UPDATE ON osrsmcp.members
+      BEFORE UPDATE ON osrsmcp.logins
       FOR EACH ROW
       WHEN (OLD.${sql.raw(column)} IS DISTINCT FROM NEW.${sql.raw(column)})
       EXECUTE FUNCTION ${sql.raw(`osrsmcp.update_${column}_timestamp`)}()

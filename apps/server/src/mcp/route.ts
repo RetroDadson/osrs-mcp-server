@@ -7,16 +7,12 @@ import type { Database } from '../db/types.js';
 import { createMcpServerForLogin } from './server-factory.js';
 import { McpSessionManager } from './session-manager.js';
 
-interface LoginNameParams {
-  loginName: string;
-}
-
 const SESSION_HEADER = 'mcp-session-id';
 
 async function handleMcpRequest(
   db: Kysely<Database>,
   sessions: McpSessionManager,
-  request: FastifyRequest<{ Params: LoginNameParams }>,
+  request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
   const sessionId = request.headers[SESSION_HEADER];
@@ -55,11 +51,11 @@ export function registerMcpRoute(app: FastifyInstance, db: Kysely<Database>, aut
   const sessions = new McpSessionManager();
   const authPreHandler = createMcpAuthPreHandler(authDeps);
 
-  const handler = async (request: FastifyRequest<{ Params: LoginNameParams }>, reply: FastifyReply): Promise<void> => {
+  const handler = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await handleMcpRequest(db, sessions, request, reply);
   };
 
-  app.post('/mcp/:loginName', { preHandler: authPreHandler }, handler);
-  app.get('/mcp/:loginName', { preHandler: authPreHandler }, handler);
-  app.delete('/mcp/:loginName', { preHandler: authPreHandler }, handler);
+  app.post('/mcp', { preHandler: authPreHandler }, handler);
+  app.get('/mcp', { preHandler: authPreHandler }, handler);
+  app.delete('/mcp', { preHandler: authPreHandler }, handler);
 }

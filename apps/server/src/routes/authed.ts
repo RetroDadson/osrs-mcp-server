@@ -1,52 +1,27 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
+  AmILoggedInResponseSchema,
   ClueCompletionSchema,
   DeathEventSchema,
   DEATH_KILLER_MAX_LENGTH,
-  MemberUpdateSchema,
-  MEMBER_PROP_LIMITS,
-  RenameMemberSchema,
-  SHARED_MEMBER,
+  LoginUpdateSchema,
+  RenameLoginSchema,
   SkillDataPeriodSchema,
   SlayerTaskCompletionSchema,
   SLAYER_TASK_FIELD_LIMITS,
-  validateMemberPropLength,
+  SNAPSHOT_PROP_LIMITS,
+  validateSnapshotPropLength,
   validateOptionalStringLength,
   validName,
   type ValidationResult,
 } from '@osrs-mcp/shared';
-import {
-  addMember,
-  deleteMember,
-  getMemberId,
-  isMemberPresent,
-  renameMember,
-} from '../db/logins.js';
+import { tokenHash } from '../auth/index.js';
+import { renameLogin } from '../db/logins.js';
 import { getLoginData } from '../db/login-data.js';
 import { getSkillsForPeriod, type SkillsPeriodTable } from '../db/skills.js';
 import { recordClueCompletion, recordDeath, recordSlayerTaskCompletion } from '../db/events.js';
 import { toPendingUpdate } from './mappers.js';
 import type { RouteDeps } from './deps.js';
-
-interface LoginNameParams {
-  loginName: string;
-}
-
-function isSharedMember(name: string): boolean {
-  return name.toLowerCase() === SHARED_MEMBER.toLowerCase();
-}
-
-async function requireMemberId(
-  deps: RouteDeps,
-  loginId: string,
-  memberName: string,
-): Promise<string> {
-  const memberId = await getMemberId(deps.db, loginId, memberName);
-  if (memberId === undefined) {
-    throw new Error(`No member named "${memberName}" for login ${loginId}`);
-  }
-  return memberId;
-}
 
 function firstFailure(...results: ValidationResult[]): ValidationResult | undefined {
   return results.find((r) => !r.ok);
@@ -62,58 +37,34 @@ const SKILL_PERIOD_TABLE: Record<string, SkillsPeriodTable> = {
 
 export function registerAuthedRoutes(app: FastifyInstance, deps: RouteDeps): void {
   const loginId = (request: FastifyRequest): string => request.loginId!;
+  const loginName = (request: FastifyRequest): string => request.loginName!;
 
-  app.post<{ Params: LoginNameParams; Body: { name?: string } }>(
-    '/api/login/:loginName/add-member',
-    async (request, reply) => {
-      const name = request.body?.name;
-      if (!name || isSharedMember(name) || !validName(name)) {
-        return reply.code(400).send({ message: 'Invalid member name' });
-      }
-      await addMember(deps.db, loginId(request), name);
-      return reply.code(201).send();
-    },
-  );
-
-  app.delete<{ Params: LoginNameParams; Body: { name?: string } }>(
-    '/api/login/:loginName/delete-member',
-    async (request, reply) => {
-      const name = request.body?.name;
-      if (!name || isSharedMember(name)) {
-        return reply.code(400).send({ message: 'Invalid member name' });
-      }
-      await deleteMember(deps.db, loginId(request), name);
-      return reply.code(200).send();
-    },
-  );
-
-  app.put<{ Params: LoginNameParams }>('/api/login/:loginName/rename-member', async (request, reply) => {
-    const parsed = RenameMemberSchema.safeParse(request.body);
+  app.put('/api/rename', async (request, reply) => {
+    const parsed = RenameLoginSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ message: 'Invalid request body' });
     }
-    const { original_name, new_name } = parsed.data;
-    if (isSharedMember(original_name) || isSharedMember(new_name) || !validName(new_name)) {
-      return reply.code(400).send({ message: 'Invalid member name' });
+    const { new_name } = parsed.data;
+    if (!validName(new_name)) {
+      return reply.code(400).send({ message: 'Invalid name' });
     }
-    await renameMember(deps.db, loginId(request), original_name, new_name);
+    await renameLogin(deps.db, loginId(request), new_name);
+    // The auth cache holds the old loginName keyed by this token's hash - evict it so the new
+    // name is visible immediately instead of only after the cache's TTL expires.
+    deps.authCache.evict(tokenHash(request.headers.authorization!, deps.config.authSecret));
     return reply.code(200).send();
   });
 
-  app.post<{ Params: LoginNameParams }>('/api/login/:loginName/update-member', async (request, reply) => {
-    const parsed = MemberUpdateSchema.safeParse(request.body);
+  app.post('/api/update', async (request, reply) => {
+    const parsed = LoginUpdateSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ message: 'Invalid request body' });
     }
     const update = parsed.data;
 
-    if (isSharedMember(update.name)) {
-      return reply.code(400).send({ message: 'Invalid member name' });
-    }
-
     const failure = firstFailure(
-      ...Object.entries(MEMBER_PROP_LIMITS).map(([prop, limits]) =>
-        validateMemberPropLength(
+      ...Object.entries(SNAPSHOT_PROP_LIMITS).map(([prop, limits]) =>
+        validateSnapshotPropLength(
           prop,
           (update as unknown as Record<string, unknown[] | undefined>)[prop],
           limits.min,
@@ -132,16 +83,13 @@ export function registerAuthedRoutes(app: FastifyInstance, deps: RouteDeps): voi
     return reply.code(200).send();
   });
 
-  app.post<{ Params: LoginNameParams }>('/api/login/:loginName/slayer-task-completed', async (request, reply) => {
+  app.post('/api/slayer-task-completed', async (request, reply) => {
     const parsed = SlayerTaskCompletionSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ message: 'Invalid request body' });
     }
-    const { name, task, master, amount_completed, outcome } = parsed.data;
+    const { task, master, amount_completed, outcome } = parsed.data;
 
-    if (isSharedMember(name)) {
-      return reply.code(400).send({ message: 'Invalid member name' });
-    }
     const failure = firstFailure(
       validateOptionalStringLength('task', task, SLAYER_TASK_FIELD_LIMITS.task),
       validateOptionalStringLength('master', master, SLAYER_TASK_FIELD_LIMITS.master),
@@ -150,8 +98,7 @@ export function registerAuthedRoutes(app: FastifyInstance, deps: RouteDeps): voi
       return reply.code(400).send({ message: failure.message });
     }
 
-    const memberId = await requireMemberId(deps, loginId(request), name);
-    await recordSlayerTaskCompletion(deps.db, memberId, {
+    await recordSlayerTaskCompletion(deps.db, loginId(request), {
       task,
       master: master ?? null,
       amountCompleted: amount_completed,
@@ -160,37 +107,29 @@ export function registerAuthedRoutes(app: FastifyInstance, deps: RouteDeps): voi
     return reply.code(201).send();
   });
 
-  app.post<{ Params: LoginNameParams }>('/api/login/:loginName/clue-completed', async (request, reply) => {
+  app.post('/api/clue-completed', async (request, reply) => {
     const parsed = ClueCompletionSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ message: 'Invalid request body' });
     }
-    const { name, tier } = parsed.data;
-    if (isSharedMember(name)) {
-      return reply.code(400).send({ message: 'Invalid member name' });
-    }
+    const { tier } = parsed.data;
 
-    const memberId = await requireMemberId(deps, loginId(request), name);
-    await recordClueCompletion(deps.db, memberId, tier);
+    await recordClueCompletion(deps.db, loginId(request), tier);
     return reply.code(201).send();
   });
 
-  app.post<{ Params: LoginNameParams }>('/api/login/:loginName/death', async (request, reply) => {
+  app.post('/api/death', async (request, reply) => {
     const parsed = DeathEventSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ message: 'Invalid request body' });
     }
-    const { name, world_x, world_y, plane, killer } = parsed.data;
-    if (isSharedMember(name)) {
-      return reply.code(400).send({ message: 'Invalid member name' });
-    }
+    const { world_x, world_y, plane, killer } = parsed.data;
     const failure = validateOptionalStringLength('killer', killer, DEATH_KILLER_MAX_LENGTH);
     if (failure && !failure.ok) {
       return reply.code(400).send({ message: failure.message });
     }
 
-    const memberId = await requireMemberId(deps, loginId(request), name);
-    await recordDeath(deps.db, memberId, {
+    await recordDeath(deps.db, loginId(request), {
       worldX: world_x ?? null,
       worldY: world_y ?? null,
       plane: plane ?? null,
@@ -199,49 +138,26 @@ export function registerAuthedRoutes(app: FastifyInstance, deps: RouteDeps): voi
     return reply.code(201).send();
   });
 
-  app.get<{ Params: LoginNameParams; Querystring: { from_time?: string } }>(
-    '/api/login/:loginName/get-data',
-    async (request, reply) => {
-      const fromTime = request.query.from_time ? new Date(request.query.from_time) : new Date(0);
-      if (Number.isNaN(fromTime.getTime())) {
-        return reply.code(400).send({ message: 'Invalid from_time' });
-      }
-      const members = await getLoginData(deps.db, loginId(request), fromTime);
-      return reply.send(members);
-    },
+  app.get<{ Querystring: { from_time?: string } }>('/api/get-data', async (request, reply) => {
+    const fromTime = request.query.from_time ? new Date(request.query.from_time) : new Date(0);
+    if (Number.isNaN(fromTime.getTime())) {
+      return reply.code(400).send({ message: 'Invalid from_time' });
+    }
+    const snapshot = await getLoginData(deps.db, loginId(request), fromTime);
+    return reply.send(snapshot);
+  });
+
+  app.get<{ Querystring: { period?: string } }>('/api/get-skill-data', async (request, reply) => {
+    const parsedPeriod = SkillDataPeriodSchema.safeParse(request.query.period);
+    if (!parsedPeriod.success) {
+      return reply.code(400).send({ message: 'Invalid period' });
+    }
+    const table = SKILL_PERIOD_TABLE[parsedPeriod.data]!;
+    const data = await getSkillsForPeriod(deps.db, loginId(request), table);
+    return reply.send(data);
+  });
+
+  app.get('/api/am-i-logged-in', async (request, reply) =>
+    reply.code(200).send(AmILoggedInResponseSchema.parse({ login_name: loginName(request) })),
   );
-
-  app.get<{ Params: LoginNameParams; Querystring: { period?: string } }>(
-    '/api/login/:loginName/get-skill-data',
-    async (request, reply) => {
-      const parsedPeriod = SkillDataPeriodSchema.safeParse(request.query.period);
-      if (!parsedPeriod.success) {
-        return reply.code(400).send({ message: 'Invalid period' });
-      }
-      const table = SKILL_PERIOD_TABLE[parsedPeriod.data]!;
-      const data = await getSkillsForPeriod(deps.db, loginId(request), table);
-      return reply.send(data);
-    },
-  );
-
-  app.get('/api/login/:loginName/am-i-logged-in', async (_request, reply) => reply.code(200).send());
-
-  app.get<{ Params: LoginNameParams; Querystring: { member_name?: string } }>(
-    '/api/login/:loginName/am-i-a-member',
-    async (request, reply) => {
-      const memberName = request.query.member_name;
-      if (!memberName) {
-        return reply.code(400).send({ message: 'member_name is required' });
-      }
-      const isMember = await isMemberPresent(deps.db, loginId(request), memberName);
-      if (!isMember) {
-        return reply.code(401).send({ message: 'Player is not a member of this login' });
-      }
-      return reply.code(200).send();
-    },
-  );
-
-  // Legacy stub: real collection log data lives in collection_log_v2, exposed via the
-  // get_collection_log MCP tool instead. Always returns an empty map here, same as before.
-  app.get('/api/login/:loginName/collection-log', async (_request, reply) => reply.send({}));
 }

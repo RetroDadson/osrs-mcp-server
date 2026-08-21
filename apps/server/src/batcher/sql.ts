@@ -1,5 +1,4 @@
 import { sql, type Kysely } from 'kysely';
-import { SHARED_MEMBER } from '@osrs-mcp/shared';
 import type { Database } from '../db/types.js';
 import { hasValidDeposits, saturatingAddI32 } from './merge.js';
 import type { PendingUpdate } from './types.js';
@@ -15,7 +14,6 @@ function bufferParam(value: number[] | undefined): Buffer | null {
 function rowTuple(update: PendingUpdate) {
   return sql`(
     ${update.loginId}::bigint,
-    ${update.name}::citext,
     ${update.stats ?? null}::int4[],
     ${update.coordinates ?? null}::int4[],
     ${update.skills ?? null}::int4[],
@@ -23,6 +21,7 @@ function rowTuple(update: PendingUpdate) {
     ${update.inventory ?? null}::int4[],
     ${update.equipment ?? null}::int4[],
     ${update.bank ?? null}::int4[],
+    ${update.sharedBank ?? null}::int4[],
     ${update.runePouch ?? null}::int4[],
     ${jsonbParam(update.interacting)}::jsonb,
     ${update.seedVault ?? null}::int4[],
@@ -37,11 +36,10 @@ function rowTuple(update: PendingUpdate) {
 
 /**
  * One wide `UPDATE ... FROM (VALUES ...)` per chunk (<=CHUNK_SIZE rows). `COALESCE(b.x, a.x)` is
- * a DB-level safety net on top of `mergeMember`'s app-level null-never-clobbers logic - a
- * NULL param never overwrites existing data even if dedup were bypassed. Non-matching
- * `(login_id, member_name)` rows are silent no-ops (matches every column being cast to a known
- * type up front, so a chunk that's entirely one column avoids Postgres's "could not determine
- * data type of parameter" error on all-NULL columns).
+ * a DB-level safety net on top of `mergeLoginUpdate`'s app-level null-never-clobbers logic - a
+ * NULL param never overwrites existing data even if dedup were bypassed. Every column is cast to
+ * a known type up front, avoiding Postgres's "could not determine data type of parameter" error
+ * on a chunk that's entirely one column.
  */
 export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly PendingUpdate[]): Promise<void> {
   if (chunk.length === 0) return;
@@ -52,7 +50,7 @@ export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly Pe
   );
 
   await sql`
-    UPDATE osrsmcp.members AS a SET
+    UPDATE osrsmcp.logins AS a SET
       stats = COALESCE(b.stats, a.stats),
       coordinates = COALESCE(b.coordinates, a.coordinates),
       skills = COALESCE(b.skills, a.skills),
@@ -60,6 +58,7 @@ export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly Pe
       inventory = COALESCE(b.inventory, a.inventory),
       equipment = COALESCE(b.equipment, a.equipment),
       bank = COALESCE(b.bank, a.bank),
+      shared_bank = COALESCE(b.shared_bank, a.shared_bank),
       rune_pouch = COALESCE(b.rune_pouch, a.rune_pouch),
       interacting = COALESCE(b.interacting, a.interacting),
       seed_vault = COALESCE(b.seed_vault, a.seed_vault),
@@ -70,11 +69,11 @@ export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly Pe
       combat_achievements = COALESCE(b.combat_achievements, a.combat_achievements),
       farming_patches = COALESCE(b.farming_patches, a.farming_patches)
     FROM (VALUES ${valuesList}) AS b(
-      login_id, member_name, stats, coordinates, skills, quests, inventory,
-      equipment, bank, rune_pouch, interacting, seed_vault, diary_vars, collection_log,
+      login_id, stats, coordinates, skills, quests, inventory,
+      equipment, bank, shared_bank, rune_pouch, interacting, seed_vault, diary_vars, collection_log,
       potion_storage, slayer_task, combat_achievements, farming_patches
     )
-    WHERE a.login_id = b.login_id AND a.member_name = b.member_name
+    WHERE a.login_id = b.login_id
   `.execute(db);
 }
 
@@ -100,9 +99,9 @@ export function mergeBankWithDeposits(currentBank: readonly number[], deposits: 
 }
 
 /**
- * For every chunk member with a valid `deposited` list: locks that member's row, merges the
- * deposit into their current `bank`, and writes it back. Not idempotent on retry (unlike the
- * bulk UPDATE and shared-bank pass) - re-applying the same deposit message twice would double it.
+ * For every chunk login with a valid `deposited` list: locks that login's row, merges the
+ * deposit into its current `bank`, and writes it back. Not idempotent on retry (unlike the bulk
+ * UPDATE) - re-applying the same deposit message twice would double it.
  */
 export async function processBankSideEffects(db: Kysely<Database>, chunk: readonly PendingUpdate[]): Promise<void> {
   const withDeposits = chunk.filter((update) => hasValidDeposits(update.deposited));
@@ -110,37 +109,15 @@ export async function processBankSideEffects(db: Kysely<Database>, chunk: readon
 
   await db.transaction().execute(async (trx) => {
     for (const update of withDeposits) {
-      const member = await trx
-        .selectFrom('members')
-        .select(['member_id', 'bank'])
-        .where('login_id', '=', update.loginId)
-        .where('member_name', '=', update.name)
-        .forUpdate()
-        .executeTakeFirst();
+      const login = await trx.selectFrom('logins').select('bank').where('login_id', '=', update.loginId).forUpdate().executeTakeFirst();
 
-      if (!member) continue; // matches the bulk UPDATE's "non-member update is a silent no-op"
+      if (!login) continue;
 
-      const mergedBank = mergeBankWithDeposits(member.bank ?? [], update.deposited!);
+      const mergedBank = mergeBankWithDeposits(login.bank ?? [], update.deposited!);
       await trx
-        .updateTable('members')
+        .updateTable('logins')
         .set({ bank: mergedBank, bank_last_update: new Date() })
-        .where('member_id', '=', member.member_id)
-        .execute();
-    }
-  });
-}
-
-/** One `UPDATE` per login's coalesced shared-bank snapshot, all in one transaction. Idempotent on retry. */
-export async function processSharedBankUpdates(db: Kysely<Database>, updates: ReadonlyMap<string, number[]>): Promise<void> {
-  if (updates.size === 0) return;
-
-  await db.transaction().execute(async (trx) => {
-    for (const [loginId, bank] of updates) {
-      await trx
-        .updateTable('members')
-        .set({ bank, bank_last_update: new Date() })
-        .where('login_id', '=', loginId)
-        .where('member_name', '=', SHARED_MEMBER)
+        .where('login_id', '=', update.loginId)
         .execute();
     }
   });

@@ -18,11 +18,7 @@ export function SetupInstructions(): React.JSX.Element {
       </div>
       <div className="panel">
         <p>
-          Install the <strong>OSRS MCP Tracker</strong> RuneLite plugin, then paste these credentials into its config
-          panel:
-        </p>
-        <p>
-          Login name: <strong>{loginName}</strong>
+          Install the <strong>OSRS MCP Tracker</strong> RuneLite plugin, then paste this token into its config panel:
         </p>
         <p>
           Token:{' '}
@@ -33,6 +29,9 @@ export function SetupInstructions(): React.JSX.Element {
               Click to show
             </button>
           )}
+        </p>
+        <p>
+          You&apos;re tracking as <strong>{loginName}</strong>.
         </p>
         <img src="/images/config_panel.png" alt="RuneLite plugin config panel" className="setup-instructions__image" />
         <Link to="/manage">

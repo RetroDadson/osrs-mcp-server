@@ -1,7 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.js';
 import { updateAccountType, upsertHiscoreActivity } from '../db/events.js';
-import type { MemberRef } from '../db/logins.js';
+import type { LoginRef } from '../db/logins.js';
 import { fetchWithTimeout } from '../http.js';
 import { USER_AGENT } from './user-agent.js';
 
@@ -69,7 +69,7 @@ export interface HiscoreProbeResult {
 /**
  * Tries each board most-restrictive-first, stopping at the first genuinely-ranked match. A 404
  * means "not on this leaderboard" (not an error) - keep probing. No match across all four boards
- * leaves the member unsynced this cycle (retried next interval).
+ * leaves the login unsynced this cycle (retried next interval).
  */
 export async function probeAccountHiscores(playerName: string): Promise<HiscoreProbeResult | undefined> {
   for (const accountType of PROBE_ORDER) {
@@ -84,14 +84,14 @@ export async function probeAccountHiscores(playerName: string): Promise<HiscoreP
   return undefined;
 }
 
-export async function syncMemberHiscores(db: Kysely<Database>, member: MemberRef): Promise<boolean> {
-  const probe = await probeAccountHiscores(member.memberName);
+export async function syncLoginHiscores(db: Kysely<Database>, login: LoginRef): Promise<boolean> {
+  const probe = await probeAccountHiscores(login.loginName);
   if (!probe) return false;
 
-  await updateAccountType(db, member.memberId, probe.accountType);
+  await updateAccountType(db, login.loginId, probe.accountType);
   for (const activity of probe.response.activities) {
     if (isRankedActivity(activity)) {
-      await upsertHiscoreActivity(db, member.memberId, activity.name, activity.score);
+      await upsertHiscoreActivity(db, login.loginId, activity.name, activity.score);
     }
   }
   return true;
