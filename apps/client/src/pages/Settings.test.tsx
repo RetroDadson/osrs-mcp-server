@@ -52,5 +52,8 @@ describe('Settings', () => {
 
     await user.click(screen.getByLabelText('Right'));
     expect(getLayoutDirection()).toBe('row-reverse');
+
+    await user.click(screen.getByLabelText('Left'));
+    expect(getLayoutDirection()).toBe('row');
   });
 });
