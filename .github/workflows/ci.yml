@@ -135,7 +135,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: coverage-reports
-      - uses: SonarSource/sonarqube-scan-action@v4
+      - uses: SonarSource/sonarqube-scan-action@v8.4.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       # sonarqube-scan-action only submits the analysis - without this step the job stays green
