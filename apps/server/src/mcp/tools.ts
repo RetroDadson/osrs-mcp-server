@@ -16,7 +16,8 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_status',
     {
-      description: 'Current snapshot of what this login is doing right now: stats, location, current interaction target, account type, and active Slayer task.',
+      description:
+        'Current snapshot of what this login is doing right now: stats, location, current interaction target, account type, and active Slayer task. account_type is one of regular, ironman, hardcore_ironman, ultimate, group_ironman, hardcore_group_ironman, or unranked_group_ironman - every non-regular mode is an ironman (no Grand Exchange or trading outside the group), and group modes share items with teammates via group storage (shared_bank).',
     },
     async () => {
       const snapshot = await fetchLoginSnapshot(ctx);

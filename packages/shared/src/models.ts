@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CropStateSchema, SlayerTaskOutcomeSchema, ClueTierSchema } from './enums.js';
+import { AccountTypeSchema, CropStateSchema, SlayerTaskOutcomeSchema, ClueTierSchema } from './enums.js';
 
 export const CoordinatesSchema = z
   .object({
@@ -77,7 +77,7 @@ export const LoginUpdateSchema = z.object({
   slayer_task: SlayerTaskSchema.optional(),
   combat_achievements: z.array(z.number().int()).optional(),
   farming_patches: z.array(FarmingPatchSchema).optional(),
-  account_type: z.string().optional(),
+  account_type: AccountTypeSchema.optional(),
   last_updated: z.iso.datetime({ offset: true }).optional(),
 });
 export type LoginUpdate = z.infer<typeof LoginUpdateSchema>;

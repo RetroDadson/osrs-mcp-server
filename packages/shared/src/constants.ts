@@ -50,6 +50,18 @@ export const SLAYER_TASK_OUTCOMES = ['completed', 'skipped', 'cancelled', 'unkno
 
 export const CLUE_TIERS = ['beginner', 'easy', 'medium', 'hard', 'elite', 'master'] as const;
 
-export const ACCOUNT_TYPES = ['hardcore_ironman', 'ultimate', 'ironman', 'regular'] as const;
+/**
+ * Every OSRS game mode. The Group Ironman variants can only come from the plugin (read from the
+ * in-game account-type varbit) - the OSRS Hiscores rank GIM players on the regular board.
+ */
+export const ACCOUNT_TYPES = [
+  'hardcore_ironman',
+  'ultimate',
+  'ironman',
+  'regular',
+  'group_ironman',
+  'hardcore_group_ironman',
+  'unranked_group_ironman',
+] as const;
 
 export const ITEM_CONTAINERS = ['inventory', 'bank', 'equipment', 'seed_vault', 'shared_bank'] as const;

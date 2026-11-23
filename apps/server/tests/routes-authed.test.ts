@@ -87,6 +87,31 @@ describe('authed routes', () => {
       });
       expect(res.statusCode).toBe(400);
     });
+
+    it('stores a plugin-reported account type immediately', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/update',
+        ...authed({ payload: { name: loginName, account_type: 'group_ironman' } }),
+      });
+      expect(res.statusCode).toBe(200);
+
+      const login = await testDb.db
+        .selectFrom('logins')
+        .select(['account_type', 'account_type_source'])
+        .where('login_name', '=', loginName)
+        .executeTakeFirstOrThrow();
+      expect(login).toEqual({ account_type: 'group_ironman', account_type_source: 'plugin' });
+    });
+
+    it('rejects an unknown account type', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/update',
+        ...authed({ payload: { name: loginName, account_type: 'gim' } }),
+      });
+      expect(res.statusCode).toBe(400);
+    });
   });
 
   describe('slayer-task-completed / clue-completed / death', () => {

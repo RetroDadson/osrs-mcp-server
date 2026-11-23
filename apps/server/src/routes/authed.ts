@@ -19,7 +19,7 @@ import { tokenHash } from '../auth/index.js';
 import { renameLogin } from '../db/logins.js';
 import { getLoginData } from '../db/login-data.js';
 import { getSkillsForPeriod, type SkillsPeriodTable } from '../db/skills.js';
-import { recordClueCompletion, recordDeath, recordSlayerTaskCompletion } from '../db/events.js';
+import { recordClueCompletion, recordDeath, recordSlayerTaskCompletion, reportAccountType } from '../db/events.js';
 import { toPendingUpdate } from './mappers.js';
 import type { RouteDeps } from './deps.js';
 
@@ -77,6 +77,12 @@ export function registerAuthedRoutes(app: FastifyInstance, deps: RouteDeps): voi
     );
     if (failure) {
       return reply.code(400).send({ message: failure.message });
+    }
+
+    // The plugin only sends account_type when it changes (normally once per session), so a
+    // direct write is cheap and keeps it out of the trigger-stamped batched columns.
+    if (update.account_type) {
+      await reportAccountType(deps.db, loginId(request), update.account_type);
     }
 
     deps.batcher.enqueue(toPendingUpdate(loginId(request), update));
