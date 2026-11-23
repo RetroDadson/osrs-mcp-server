@@ -1,4 +1,5 @@
 import type { Kysely } from 'kysely';
+import type { AccountType } from '@osrs-mcp/shared';
 import type { Database } from './types.js';
 
 export interface SlayerTaskCompletionInput {
@@ -56,10 +57,25 @@ export async function upsertHiscoreActivity(
     .execute();
 }
 
-export async function updateAccountType(db: Kysely<Database>, loginId: string, accountType: string): Promise<void> {
+/**
+ * Hiscores-detected account type. Never overwrites a plugin-reported value: the hiscores can't
+ * see Group Ironman (GIM players rank on the regular board), so it would clobber a correct GIM
+ * type with 'regular'.
+ */
+export async function updateAccountType(db: Kysely<Database>, loginId: string, accountType: AccountType): Promise<void> {
   await db
     .updateTable('logins')
-    .set({ account_type: accountType, account_type_last_checked: new Date() })
+    .set({ account_type: accountType, account_type_last_checked: new Date(), account_type_source: 'hiscores' })
+    .where('login_id', '=', loginId)
+    .where((eb) => eb.or([eb('account_type_source', 'is', null), eb('account_type_source', '!=', 'plugin')]))
+    .execute();
+}
+
+/** Plugin-reported account type, read from the game client - authoritative, always wins. */
+export async function reportAccountType(db: Kysely<Database>, loginId: string, accountType: AccountType): Promise<void> {
+  await db
+    .updateTable('logins')
+    .set({ account_type: accountType, account_type_last_checked: new Date(), account_type_source: 'plugin' })
     .where('login_id', '=', loginId)
     .execute();
 }

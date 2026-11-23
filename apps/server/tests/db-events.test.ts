@@ -8,6 +8,7 @@ import {
   recordClueCompletion,
   recordDeath,
   recordSlayerTaskCompletion,
+  reportAccountType,
   updateAccountType,
   upsertHiscoreActivity,
   upsertItemMetadata,
@@ -96,6 +97,33 @@ describe('events', () => {
 
     expect(login.account_type).toBe('hardcore_ironman');
     expect(login.account_type_last_checked).not.toBeNull();
+  });
+
+  it('a plugin-reported account type overrides hiscores, and hiscores never overwrites it back', async () => {
+    const { login_id: id } = await testDb.db
+      .insertInto('logins')
+      .values({ login_name: 'gimtest', token_hash: 'h-gim' })
+      .returning('login_id')
+      .executeTakeFirstOrThrow();
+    const read = () =>
+      testDb.db
+        .selectFrom('logins')
+        .select(['account_type', 'account_type_source'])
+        .where('login_id', '=', id)
+        .executeTakeFirstOrThrow();
+
+    await updateAccountType(testDb.db, id, 'regular');
+    expect(await read()).toEqual({ account_type: 'regular', account_type_source: 'hiscores' });
+
+    await reportAccountType(testDb.db, id, 'group_ironman');
+    expect(await read()).toEqual({ account_type: 'group_ironman', account_type_source: 'plugin' });
+
+    // GIM players rank on the regular hiscores board - the poller must not clobber the real type.
+    await updateAccountType(testDb.db, id, 'regular');
+    expect(await read()).toEqual({ account_type: 'group_ironman', account_type_source: 'plugin' });
+
+    await reportAccountType(testDb.db, id, 'hardcore_group_ironman');
+    expect(await read()).toEqual({ account_type: 'hardcore_group_ironman', account_type_source: 'plugin' });
   });
 
   it('upserts item metadata without duplicating', async () => {

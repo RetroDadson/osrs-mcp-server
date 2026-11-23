@@ -31,9 +31,21 @@ describe('ClueTierSchema', () => {
 
 describe('AccountTypeSchema', () => {
   it('accepts every documented account type', () => {
-    for (const value of ['hardcore_ironman', 'ultimate', 'ironman', 'regular']) {
+    for (const value of [
+      'hardcore_ironman',
+      'ultimate',
+      'ironman',
+      'regular',
+      'group_ironman',
+      'hardcore_group_ironman',
+      'unranked_group_ironman',
+    ]) {
       expect(AccountTypeSchema.parse(value)).toBe(value);
     }
+  });
+
+  it('rejects an unknown value', () => {
+    expect(AccountTypeSchema.safeParse('gim').success).toBe(false);
   });
 });
 

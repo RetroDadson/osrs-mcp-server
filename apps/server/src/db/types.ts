@@ -1,5 +1,5 @@
 import type { ColumnType, Generated } from 'kysely';
-import type { FarmingPatch, Interacting, SlayerTask } from '@osrs-mcp/shared';
+import type { AccountType, FarmingPatch, Interacting, SlayerTask } from '@osrs-mcp/shared';
 
 /** A column with a DB-side default; optional on insert, always present on select. */
 type WithDefault<T> = ColumnType<T, T | undefined, T>;
@@ -64,8 +64,9 @@ export interface LoginsTable {
   combat_achievements_last_update: Date | null;
   combat_achievements: number[] | null;
 
-  account_type: string | null;
+  account_type: AccountType | null;
   account_type_last_checked: Date | null;
+  account_type_source: 'plugin' | 'hiscores' | null;
 
   farming_patches_last_update: Date | null;
   farming_patches: FarmingPatch[] | null;

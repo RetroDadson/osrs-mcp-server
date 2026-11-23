@@ -1,5 +1,5 @@
 import { sql, type Kysely } from 'kysely';
-import type { FarmingPatch, LoginSnapshot, Interacting, SlayerTask } from '@osrs-mcp/shared';
+import type { AccountType, FarmingPatch, LoginSnapshot, Interacting, SlayerTask } from '@osrs-mcp/shared';
 import type { Database } from './types.js';
 
 /**
@@ -49,7 +49,7 @@ interface LoginDataRow {
   slayer_task: SlayerTask | null;
   combat_achievements: number[] | null;
   farming_patches: FarmingPatch[] | null;
-  account_type: string | null;
+  account_type: AccountType | null;
 }
 
 /**

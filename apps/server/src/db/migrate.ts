@@ -1,11 +1,13 @@
 import type { Kysely } from 'kysely';
 import { Migrator, type MigrationProvider } from 'kysely/migration';
 import * as baseline from './migrations/001_baseline.js';
+import * as accountTypeSource from './migrations/002_account_type_source.js';
 
 const provider: MigrationProvider = {
   async getMigrations() {
     return {
       '001_baseline': baseline,
+      '002_account_type_source': accountTypeSource,
     };
   },
 };
