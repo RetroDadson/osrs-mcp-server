@@ -19,7 +19,7 @@ test('create a login, walk setup, log back in, rename, and log out', async ({ pa
   const tokenText = await page.locator('strong.token-value').textContent();
   expect(tokenText).toBeTruthy();
 
-  await page.getByText('Continue').click();
+  await page.locator('nav').getByText('Settings').click();
   await expect(page).toHaveURL(/\/manage/);
   await expect(page.getByLabel('Your OSRS name')).toHaveValue(loginName);
 
