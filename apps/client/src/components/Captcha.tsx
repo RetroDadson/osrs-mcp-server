@@ -40,7 +40,8 @@ export function Captcha({ sitekey, onWidgetReady }: Readonly<Props>): React.JSX.
 
   useEffect(() => {
     let cancelled = false;
-    loadHcaptchaScript().then(() => {
+    // loadHcaptchaScript never rejects, so there is no failure path to handle here.
+    void loadHcaptchaScript().then(() => {
       if (cancelled || !window.hcaptcha) return;
       const widgetId = window.hcaptcha.render(CONTAINER_ID, { sitekey });
       widgetIdRef.current = widgetId;

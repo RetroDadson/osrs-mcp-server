@@ -21,6 +21,8 @@ export function LoginLayout(): React.JSX.Element {
           setCredentials(resolvedName, token);
         }
       })
+      // Network/server failure: keep the stored login rather than logging out on a transient error.
+      .catch(() => undefined)
       .finally(() => setLoading(false));
     // Only re-run when the login identity actually changes, not on every setCredentials/logout identity change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
