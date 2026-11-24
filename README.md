@@ -34,26 +34,28 @@ A single npm-workspaces monorepo:
 
 Prerequisites: Docker, docker-compose.
 
-1. Copy `docker-compose.yml` and `.env.example` onto your server.
+1. Copy `docker-compose.yml` and `.env.example` onto your server. Nothing else from the repo is needed.
 2. Copy `.env.example` to `.env` and fill in the values — the comments in the file explain each one. At minimum you need `PG_USER`/`PG_PASSWORD`/`PG_DB` and a random `AUTH_SECRET` (used to hash login tokens — treat it like a password; rotating it invalidates every existing login token).
-3. `docker-compose up -d --build`
+3. `docker compose pull && docker compose up -d`
 
-The app builds from source (`docker/Dockerfile`, context `.`) since no image is published yet. It listens on port `8080` by default (change the `ports` mapping in `docker-compose.yml` if you want a different host port). The database schema is created automatically on first boot — no manual `schema.sql` step needed.
+The app runs the image CI publishes to the GitHub Container Registry, `ghcr.io/retrodadson/osrs-mcp`. It is tagged `latest` and with each commit SHA, so pin a SHA tag if you want to control when you upgrade. To update, run step 3 again. It listens on port `8080` by default (change the `ports` mapping in `docker-compose.yml` if you want a different host port). The database schema is created automatically on first boot — no manual `schema.sql` step needed.
 
 In the RuneLite plugin settings, set the base URL to wherever you're hosting this. Leaving it blank defaults to the public server.
 
+To build from source instead, clone the repo, swap the `image:` line in `docker-compose.yml` for the `build:` line in the comment above it, then run `docker compose up -d --build`.
+
 ### Without docker-compose
 
-Build the image yourself: `docker build -f docker/Dockerfile -t osrs-mcp .`
-
-Run it against your own Postgres instance:
+Run the published image against your own Postgres instance:
 
 ```sh
 docker run -d -p 8080:8080 \
   -e PG_USER=... -e PG_PASSWORD=... -e PG_HOST=... -e PG_PORT=5432 -e PG_DB=... \
   -e AUTH_SECRET=... \
-  osrs-mcp
+  ghcr.io/retrodadson/osrs-mcp:latest
 ```
+
+Or build it yourself with `docker build -f docker/Dockerfile -t osrs-mcp .` and run `osrs-mcp` in place of the image name.
 
 See `.env.example` for the full list of supported environment variables (hCaptcha, log level, etc).
 
