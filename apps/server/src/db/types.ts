@@ -28,6 +28,9 @@ export interface LoginsTable {
   rune_pouch_last_update: Date | null;
   rune_pouch: number[] | null;
 
+  quiver_last_update: Date | null;
+  quiver: number[] | null;
+
   bank_last_update: Date | null;
   bank: number[] | null;
 

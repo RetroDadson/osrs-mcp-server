@@ -52,6 +52,7 @@ export function mergeLoginUpdate(older: PendingUpdate, newer: PendingUpdate): Pe
     bank: newer.bank ?? older.bank,
     sharedBank: newer.sharedBank ?? older.sharedBank,
     runePouch: newer.runePouch ?? older.runePouch,
+    quiver: newer.quiver ?? older.quiver,
     interacting: newer.interacting ?? older.interacting,
     seedVault: newer.seedVault ?? older.seedVault,
     deposited: mergeDeposited(older.deposited, newer.deposited),

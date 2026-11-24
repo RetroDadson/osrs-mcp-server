@@ -22,6 +22,7 @@ function rowTuple(update: PendingUpdate) {
     ${update.bank ?? null}::int4[],
     ${update.sharedBank ?? null}::int4[],
     ${update.runePouch ?? null}::int4[],
+    ${update.quiver ?? null}::int4[],
     ${jsonbParam(update.interacting)}::jsonb,
     ${update.seedVault ?? null}::int4[],
     ${update.diaryVars ?? null}::int4[],
@@ -58,6 +59,7 @@ export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly Pe
       bank = COALESCE(b.bank, a.bank),
       shared_bank = COALESCE(b.shared_bank, a.shared_bank),
       rune_pouch = COALESCE(b.rune_pouch, a.rune_pouch),
+      quiver = COALESCE(b.quiver, a.quiver),
       interacting = COALESCE(b.interacting, a.interacting),
       seed_vault = COALESCE(b.seed_vault, a.seed_vault),
       diary_vars = COALESCE(b.diary_vars, a.diary_vars),
@@ -68,7 +70,7 @@ export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly Pe
       farming_patches = COALESCE(b.farming_patches, a.farming_patches)
     FROM (VALUES ${valuesList}) AS b(
       login_id, stats, skills, quests, inventory,
-      equipment, bank, shared_bank, rune_pouch, interacting, seed_vault, diary_vars, collection_log,
+      equipment, bank, shared_bank, rune_pouch, quiver, interacting, seed_vault, diary_vars, collection_log,
       potion_storage, slayer_task, combat_achievements, farming_patches
     )
     WHERE a.login_id = b.login_id

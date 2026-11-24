@@ -3,6 +3,7 @@ import { Migrator, type MigrationProvider } from 'kysely/migration';
 import * as baseline from './migrations/001_baseline.js';
 import * as accountTypeSource from './migrations/002_account_type_source.js';
 import * as dropLocationData from './migrations/003_drop_location_data.js';
+import * as addQuiver from './migrations/004_add_quiver.js';
 
 const provider: MigrationProvider = {
   async getMigrations() {
@@ -10,6 +11,7 @@ const provider: MigrationProvider = {
       '001_baseline': baseline,
       '002_account_type_source': accountTypeSource,
       '003_drop_location_data': dropLocationData,
+      '004_add_quiver': addQuiver,
     };
   },
 };

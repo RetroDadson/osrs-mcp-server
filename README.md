@@ -8,7 +8,7 @@ Originally forked from [group-ironmen](https://github.com/christoabrown/group-ir
 
 Tracks:
 
-* Inventory, equipment, bank, rune pouch, seed vault, and shared bank
+* Inventory, equipment, bank, rune pouch, quiver, seed vault, and shared bank
 * Skill XP (current + historical, aggregated daily/monthly/yearly)
 * Current interaction target (name and health)
 * Quest state, Achievement Diaries, Collection Log

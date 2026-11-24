@@ -12,6 +12,7 @@ export function toPendingUpdate(loginId: string, update: LoginUpdate): PendingUp
     bank: update.bank,
     sharedBank: update.shared_bank,
     runePouch: update.rune_pouch,
+    quiver: update.quiver,
     interacting: update.interacting,
     seedVault: update.seed_vault,
     deposited: update.deposited,

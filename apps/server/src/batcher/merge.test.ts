@@ -12,6 +12,7 @@ const BLANK_UPDATE: PendingUpdate = {
   bank: undefined,
   sharedBank: undefined,
   runePouch: undefined,
+  quiver: undefined,
   interacting: undefined,
   seedVault: undefined,
   deposited: undefined,

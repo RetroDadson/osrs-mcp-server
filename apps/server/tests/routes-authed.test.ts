@@ -79,11 +79,46 @@ describe('authed routes', () => {
       expect(login.stats).toEqual([1, 2, 3, 4, 5, 6]);
     });
 
-    it('rejects an oversized array (stats must be exactly 7 elements)', async () => {
+    it('rejects an undersized array (stats must be exactly 6 elements)', async () => {
       const res = await testApp.app.inject({
         method: 'POST',
         url: '/api/update',
         ...authed({ payload: { name: loginName, stats: [1, 2, 3] } }),
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('rejects stats that still carry a world number (7 elements)', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/update',
+        ...authed({ payload: { name: loginName, stats: [1, 2, 3, 4, 5, 6, 302] } }),
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('stores the quiver ammo stack', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/update',
+        ...authed({ payload: { name: loginName, quiver: [892, 250] } }),
+      });
+      expect(res.statusCode).toBe(200);
+
+      await testApp.batcher.flush();
+      const login = await testDb.db
+        .selectFrom('logins')
+        .select('quiver')
+        .where('login_name', '=', loginName)
+        .executeTakeFirstOrThrow();
+      expect(login.quiver).toEqual([892, 250]);
+    });
+
+    it('rejects a quiver that is not exactly one item pair', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/update',
+        ...authed({ payload: { name: loginName, quiver: [892, 250, 893, 10] } }),
       });
       expect(res.statusCode).toBe(400);
     });

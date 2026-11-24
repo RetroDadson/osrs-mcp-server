@@ -92,6 +92,7 @@ describe('baseline migration', () => {
     'bank',
     'shared_bank',
     'rune_pouch',
+    'quiver',
     'seed_vault',
     'diary_vars',
     'collection_log',

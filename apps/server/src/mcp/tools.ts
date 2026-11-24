@@ -36,7 +36,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_items',
     {
       description:
-        'Resolves items in a given container (inventory, bank, equipment, seed_vault, or shared_bank) to item names, quantities, and alch values. Equipment entries are labeled with their slot name.',
+        "Resolves items in a given container (inventory, bank, equipment, seed_vault, shared_bank, or quiver) to item names, quantities, and alch values. Equipment entries are labeled with their slot name. quiver is the ammo stack held in Dizana's quiver (empty if none).",
       inputSchema: ItemsArgsSchema.shape,
     },
     async ({ container }) => {

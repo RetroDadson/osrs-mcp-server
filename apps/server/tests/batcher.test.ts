@@ -12,6 +12,7 @@ const BLANK: Omit<PendingUpdate, 'loginId'> = {
   bank: undefined,
   sharedBank: undefined,
   runePouch: undefined,
+  quiver: undefined,
   interacting: undefined,
   seedVault: undefined,
   deposited: undefined,
@@ -126,6 +127,7 @@ describe('update batcher (integration)', () => {
         bank: [4151, 1],
         sharedBank: [995, 1000],
         runePouch: new Array(8).fill(0),
+        quiver: [892, 250],
         interacting,
         seedVault: [],
         diaryVars: new Array(62).fill(0),
@@ -147,6 +149,7 @@ describe('update batcher (integration)', () => {
     expect(login.bank).toEqual([4151, 1]);
     expect(login.shared_bank).toEqual([995, 1000]);
     expect(login.rune_pouch).toEqual(new Array(8).fill(0));
+    expect(login.quiver).toEqual([892, 250]);
     expect(login.interacting).toEqual(interacting);
     expect(login.seed_vault).toEqual([]);
     expect(login.diary_vars).toEqual(new Array(62).fill(0));

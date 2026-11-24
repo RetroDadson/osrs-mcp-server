@@ -15,6 +15,7 @@ export interface PendingUpdate {
   bank: number[] | undefined;
   sharedBank: number[] | undefined;
   runePouch: number[] | undefined;
+  quiver: number[] | undefined;
   interacting: Interacting | undefined;
   seedVault: number[] | undefined;
   deposited: number[] | undefined;
@@ -37,6 +38,7 @@ export const BATCHED_COLUMNS = [
   'bank',
   'shared_bank',
   'rune_pouch',
+  'quiver',
   'interacting',
   'seed_vault',
   'diary_vars',

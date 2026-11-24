@@ -64,6 +64,7 @@ export const LoginUpdateSchema = z.object({
   bank: z.array(z.number().int()).optional(),
   shared_bank: z.array(z.number().int()).optional(),
   rune_pouch: z.array(z.number().int()).optional(),
+  quiver: z.array(z.number().int()).optional(),
   interacting: InteractingSchema.optional(),
   seed_vault: z.array(z.number().int()).optional(),
   deposited: z.array(z.number().int()).optional(),

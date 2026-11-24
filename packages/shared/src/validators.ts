@@ -64,6 +64,8 @@ export const SNAPSHOT_PROP_LIMITS = {
   bank: { min: 0, max: 3000, format: 'item_pairs' },
   shared_bank: { min: 0, max: 1000, format: 'item_pairs' },
   rune_pouch: { min: 6, max: 8, format: 'item_pairs' },
+  // Dizana's quiver holds one ammo stack: [itemId, quantity], [0, 0] when empty.
+  quiver: { min: 2, max: 2, format: 'item_pairs' },
   seed_vault: { min: 0, max: 500, format: 'item_pairs' },
   deposited: { min: 0, max: 200, format: 'item_pairs' },
   diary_vars: { min: 0, max: 62, format: 'flat' },

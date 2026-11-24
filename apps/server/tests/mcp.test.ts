@@ -53,6 +53,14 @@ describe('MCP server (real client over real HTTP)', () => {
       tradeable: true,
       membersOnly: true,
     });
+    await upsertItemMetadata(testDb.db, {
+      itemId: 892,
+      name: 'Rune arrow',
+      highAlch: 240,
+      lowAlch: 160,
+      tradeable: true,
+      membersOnly: false,
+    });
     await testDb.db
       .updateTable('logins')
       .set({ inventory: [4151, 1, ...new Array(54).fill(0)], bank: [] })
@@ -67,6 +75,7 @@ describe('MCP server (real client over real HTTP)', () => {
         stats: [10, 99, 40, 70, 100, 100],
         quests: Buffer.from([0, 1, 2]),
         shared_bank: [4151, 5],
+        quiver: [892, 250],
         slayer_task: {
           task: 'Gargoyles',
           master: 'Duradel',
@@ -157,6 +166,14 @@ describe('MCP server (real client over real HTTP)', () => {
     const result = await client.callTool({ name: 'get_items', arguments: { container: 'shared_bank' } });
     const items = firstTextContent(result as never) as Array<{ item_id: number; quantity: number }>;
     expect(items).toEqual([expect.objectContaining({ item_id: 4151, quantity: 5 })]);
+    await client.close();
+  });
+
+  it('get_items(quiver) resolves the ammo held in the quiver', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_items', arguments: { container: 'quiver' } });
+    const items = firstTextContent(result as never) as Array<{ item_id: number; name: string; quantity: number }>;
+    expect(items).toEqual([expect.objectContaining({ item_id: 892, name: 'Rune arrow', quantity: 250 })]);
     await client.close();
   });
 
