@@ -69,14 +69,17 @@ describe('events', () => {
     expect(masterOnly.every((c) => c.tier === 'master')).toBe(true);
   });
 
-  it('records deaths with optional location/killer fields', async () => {
-    await recordDeath(testDb.db, loginId, { worldX: 3200, worldY: 3200, plane: 0, killer: 'Gargoyle' });
-    await recordDeath(testDb.db, loginId, { worldX: null, worldY: null, plane: null, killer: null });
+  it('records deaths with an optional killer and no location', async () => {
+    await recordDeath(testDb.db, loginId, { killer: 'Gargoyle' });
+    await recordDeath(testDb.db, loginId, { killer: null });
 
     const deaths = await getDeaths(testDb.db, loginId, 20);
     expect(deaths).toHaveLength(2);
     expect(deaths.some((d) => d.killer === 'Gargoyle')).toBe(true);
     expect(deaths.some((d) => d.killer === null)).toBe(true);
+    for (const death of deaths) {
+      expect(Object.keys(death).sort()).toEqual(['diedAt', 'killer']);
+    }
   });
 
   it('upserts hiscore activities without duplicating (overwrite-not-insert on conflict)', async () => {

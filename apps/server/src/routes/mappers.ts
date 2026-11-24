@@ -5,7 +5,6 @@ export function toPendingUpdate(loginId: string, update: LoginUpdate): PendingUp
   return {
     loginId,
     stats: update.stats,
-    coordinates: update.coordinates,
     skills: update.skills,
     quests: update.quests,
     inventory: update.inventory,

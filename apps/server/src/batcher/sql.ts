@@ -15,7 +15,6 @@ function rowTuple(update: PendingUpdate) {
   return sql`(
     ${update.loginId}::bigint,
     ${update.stats ?? null}::int4[],
-    ${update.coordinates ?? null}::int4[],
     ${update.skills ?? null}::int4[],
     ${bufferParam(update.quests)}::bytea,
     ${update.inventory ?? null}::int4[],
@@ -52,7 +51,6 @@ export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly Pe
   await sql`
     UPDATE osrsmcp.logins AS a SET
       stats = COALESCE(b.stats, a.stats),
-      coordinates = COALESCE(b.coordinates, a.coordinates),
       skills = COALESCE(b.skills, a.skills),
       quests = COALESCE(b.quests, a.quests),
       inventory = COALESCE(b.inventory, a.inventory),
@@ -69,7 +67,7 @@ export async function executeBulkUpdate(db: Kysely<Database>, chunk: readonly Pe
       combat_achievements = COALESCE(b.combat_achievements, a.combat_achievements),
       farming_patches = COALESCE(b.farming_patches, a.farming_patches)
     FROM (VALUES ${valuesList}) AS b(
-      login_id, stats, coordinates, skills, quests, inventory,
+      login_id, stats, skills, quests, inventory,
       equipment, bank, shared_bank, rune_pouch, interacting, seed_vault, diary_vars, collection_log,
       potion_storage, slayer_task, combat_achievements, farming_patches
     )

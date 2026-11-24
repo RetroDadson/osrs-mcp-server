@@ -5,7 +5,6 @@ import { deduplicateBatch, hasValidDeposits, mergeDeposited, mergeLoginUpdate } 
 const BLANK_UPDATE: PendingUpdate = {
   loginId: '1',
   stats: undefined,
-  coordinates: undefined,
   skills: undefined,
   quests: undefined,
   inventory: undefined,
@@ -73,7 +72,7 @@ describe('mergeLoginUpdate', () => {
 
   it('keeps the older value when newer leaves the field undefined', () => {
     const older = loginUpdate({ stats: [1, 1, 1] });
-    const newer = loginUpdate({ coordinates: [1, 2, 3] });
+    const newer = loginUpdate({ skills: [1, 2, 3] });
     expect(mergeLoginUpdate(older, newer).stats).toEqual([1, 1, 1]);
   });
 
@@ -120,11 +119,11 @@ describe('mergeLoginUpdate', () => {
 
 describe('deduplicateBatch', () => {
   it('merges multiple updates for the same loginId in received order', () => {
-    const items = [loginUpdate({ stats: [1, 1, 1] }), loginUpdate({ coordinates: [9, 9, 9] })];
+    const items = [loginUpdate({ stats: [1, 1, 1] }), loginUpdate({ skills: [9, 9, 9] })];
     const result = deduplicateBatch(items);
     expect(result).toHaveLength(1);
     expect(result[0]?.stats).toEqual([1, 1, 1]);
-    expect(result[0]?.coordinates).toEqual([9, 9, 9]);
+    expect(result[0]?.skills).toEqual([9, 9, 9]);
   });
 
   it('keeps different logins separate', () => {

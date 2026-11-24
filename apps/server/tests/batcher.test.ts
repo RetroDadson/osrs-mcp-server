@@ -5,7 +5,6 @@ import { startTestDb, stopTestDb, type TestDb } from './helpers/test-db.js';
 
 const BLANK: Omit<PendingUpdate, 'loginId'> = {
   stats: undefined,
-  coordinates: undefined,
   skills: undefined,
   quests: undefined,
   inventory: undefined,
@@ -58,23 +57,23 @@ describe('update batcher (integration)', () => {
 
   it('persists a single update', async () => {
     const loginId = await createTestLogin('batchlogin1');
-    batcher.enqueue(update(loginId, { stats: [1, 2, 3, 4, 5, 6, 7] }));
+    batcher.enqueue(update(loginId, { stats: [1, 2, 3, 4, 5, 6] }));
     await batcher.flush();
 
     const login = await fetchLogin(loginId);
-    expect(login.stats).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(login.stats).toEqual([1, 2, 3, 4, 5, 6]);
     expect(login.stats_last_update).not.toBeNull();
   });
 
   it('merges two concurrent partial updates for the same login without losing fields', async () => {
     const loginId = await createTestLogin('batchlogin2');
-    batcher.enqueue(update(loginId, { stats: [1, 1, 1, 1, 1, 1, 1] }));
-    batcher.enqueue(update(loginId, { coordinates: [100, 200, 0] }));
+    batcher.enqueue(update(loginId, { stats: [1, 1, 1, 1, 1, 1] }));
+    batcher.enqueue(update(loginId, { skills: [100, 200, 0] }));
     await batcher.flush();
 
     const login = await fetchLogin(loginId);
-    expect(login.stats).toEqual([1, 1, 1, 1, 1, 1, 1]);
-    expect(login.coordinates).toEqual([100, 200, 0]);
+    expect(login.stats).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(login.skills).toEqual([100, 200, 0]);
   });
 
   it('processes different logins independently in the same batch', async () => {
@@ -115,12 +114,11 @@ describe('update batcher (integration)', () => {
       wilderness_streak: 0,
     };
     const farmingPatches = [{ name: 'Herb patch (Falador)', raw_value: 0 }];
-    const interacting = { name: 'Gargoyle', scale: 100, ratio: 1, location: { x: 100, y: 200, plane: 0 } };
+    const interacting = { name: 'Gargoyle', scale: 100, ratio: 1 };
 
     batcher.enqueue(
       update(loginId, {
-        stats: [1, 2, 3, 4, 5, 6, 7],
-        coordinates: [1, 2, 0],
+        stats: [1, 2, 3, 4, 5, 6],
         skills: new Array(24).fill(1),
         quests: [0, 1, 255],
         inventory: new Array(56).fill(0),
@@ -141,8 +139,7 @@ describe('update batcher (integration)', () => {
     await batcher.flush();
 
     const login = await fetchLogin(loginId);
-    expect(login.stats).toEqual([1, 2, 3, 4, 5, 6, 7]);
-    expect(login.coordinates).toEqual([1, 2, 0]);
+    expect(login.stats).toEqual([1, 2, 3, 4, 5, 6]);
     expect(login.skills).toEqual(new Array(24).fill(1));
     expect(Array.from(login.quests ?? [])).toEqual([0, 1, 255]);
     expect(login.inventory).toEqual(new Array(56).fill(0));
@@ -166,25 +163,25 @@ describe('update batcher (integration)', () => {
       loginIds.push(await createTestLogin(`chunklogin${i}`));
     }
     for (let i = 0; i < 55; i++) {
-      batcher.enqueue(update(loginIds[i]!, { stats: [i, i, i, i, i, i, i] }));
+      batcher.enqueue(update(loginIds[i]!, { stats: [i, i, i, i, i, i] }));
     }
     await batcher.flush();
 
     for (let i = 0; i < 55; i++) {
       const login = await fetchLogin(loginIds[i]!);
-      expect(login.stats).toEqual([i, i, i, i, i, i, i]);
+      expect(login.stats).toEqual([i, i, i, i, i, i]);
     }
   });
 
   it('persists across sequential batches cumulatively', async () => {
     const loginId = await createTestLogin('batchlogin9');
-    batcher.enqueue(update(loginId, { stats: [1, 1, 1, 1, 1, 1, 1] }));
+    batcher.enqueue(update(loginId, { stats: [1, 1, 1, 1, 1, 1] }));
     await batcher.flush();
-    batcher.enqueue(update(loginId, { coordinates: [5, 5, 0] }));
+    batcher.enqueue(update(loginId, { skills: [5, 5, 0] }));
     await batcher.flush();
 
     const login = await fetchLogin(loginId);
-    expect(login.stats).toEqual([1, 1, 1, 1, 1, 1, 1]);
-    expect(login.coordinates).toEqual([5, 5, 0]);
+    expect(login.stats).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(login.skills).toEqual([5, 5, 0]);
   });
 });

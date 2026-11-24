@@ -17,7 +17,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_status',
     {
       description:
-        'Current snapshot of what this login is doing right now: stats, location, current interaction target, account type, and active Slayer task. account_type is one of regular, ironman, hardcore_ironman, ultimate, group_ironman, hardcore_group_ironman, or unranked_group_ironman - every non-regular mode is an ironman (no Grand Exchange or trading outside the group), and group modes share items with teammates via group storage (shared_bank).',
+        'Current snapshot of what this login is doing right now: stats (hitpoints, prayer and run energy as [current, max] pairs), current interaction target (name and health), account type, and active Slayer task. The player\'s location and world are deliberately not tracked. account_type is one of regular, ironman, hardcore_ironman, ultimate, group_ironman, hardcore_group_ironman, or unranked_group_ironman - every non-regular mode is an ironman (no Grand Exchange or trading outside the group), and group modes share items with teammates via group storage (shared_bank).',
     },
     async () => {
       const snapshot = await fetchLoginSnapshot(ctx);
@@ -25,7 +25,6 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
         name: snapshot.name,
         account_type: snapshot.account_type ?? null,
         stats: snapshot.stats ?? null,
-        coordinates: snapshot.coordinates ?? null,
         interacting: snapshot.interacting ?? null,
         slayer_task: snapshot.slayer_task ?? null,
         last_updated: snapshot.last_updated ?? null,
@@ -158,7 +157,7 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
     'get_deaths',
     {
       description:
-        'Death log, most recent first. Best-effort only (no authoritative external source) - only captures deaths observed while the plugin was connected.',
+        'Death log (time and likely killer), most recent first. Best-effort only (no authoritative external source) - only captures deaths observed while the plugin was connected. Death locations are deliberately not tracked.',
       inputSchema: HistoryArgsSchema.shape,
     },
     async ({ limit }) => {

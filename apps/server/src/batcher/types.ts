@@ -8,7 +8,6 @@ import type { FarmingPatch, Interacting, SlayerTask } from '@osrs-mcp/shared';
 export interface PendingUpdate {
   loginId: string;
   stats: number[] | undefined;
-  coordinates: number[] | undefined;
   skills: number[] | undefined;
   quests: number[] | undefined;
   inventory: number[] | undefined;
@@ -31,7 +30,6 @@ export interface PendingUpdate {
 /** The 17 snapshot columns written by the bulk UPDATE (`login_id` is separate). */
 export const BATCHED_COLUMNS = [
   'stats',
-  'coordinates',
   'skills',
   'quests',
   'inventory',

@@ -44,12 +44,12 @@ describe('getLoginData', () => {
 
     await testDb.db
       .updateTable('logins')
-      .set({ stats: [1, 2, 3, 4, 5, 6, 7], quests: Buffer.from([0, 1, 2, 255]) })
+      .set({ stats: [1, 2, 3, 4, 5, 6], quests: Buffer.from([0, 1, 2, 255]) })
       .where('login_id', '=', loginId)
       .execute();
 
     const snapshot = await getLoginData(testDb.db, loginId, EPOCH);
-    expect(snapshot?.stats).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(snapshot?.stats).toEqual([1, 2, 3, 4, 5, 6]);
     expect(snapshot?.quests).toEqual([0, 1, 2, 255]);
   });
 

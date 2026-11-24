@@ -10,13 +10,13 @@ Tracks:
 
 * Inventory, equipment, bank, rune pouch, seed vault, and shared bank
 * Skill XP (current + historical, aggregated daily/monthly/yearly)
-* World position and current interaction target
+* Current interaction target (name and health)
 * Quest state, Achievement Diaries, Collection Log
 * Slayer tasks (current + history), Combat Achievements
 * Farming patches
 * Clue scroll completions (timestamped) and totals (from the OSRS Hiscores, authoritative)
 * Boss/activity kill counts (from the OSRS Hiscores)
-* Deaths (location + likely killer, best-effort)
+* Deaths (time + likely killer, best-effort)
 
 ## Architecture
 

@@ -45,7 +45,6 @@ export function mergeLoginUpdate(older: PendingUpdate, newer: PendingUpdate): Pe
   return {
     loginId: newer.loginId,
     stats: newer.stats ?? older.stats,
-    coordinates: newer.coordinates ?? older.coordinates,
     skills: newer.skills ?? older.skills,
     quests: newer.quests ?? older.quests,
     inventory: newer.inventory ?? older.inventory,

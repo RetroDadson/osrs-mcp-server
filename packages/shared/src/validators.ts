@@ -55,8 +55,8 @@ export function validateSnapshotPropLength(
  * original Rust server's per-field validation calls.
  */
 export const SNAPSHOT_PROP_LIMITS = {
-  stats: { min: 7, max: 7, format: 'flat' },
-  coordinates: { min: 3, max: 4, format: 'flat' },
+  // [hp, hp max, prayer, prayer max, run energy, run energy max] - no world number.
+  stats: { min: 6, max: 6, format: 'flat' },
   skills: { min: 23, max: 24, format: 'flat' },
   quests: { min: 0, max: 250, format: 'flat' },
   inventory: { min: 56, max: 56, format: 'item_pairs' },

@@ -31,17 +31,11 @@ export async function recordClueCompletion(db: Kysely<Database>, loginId: string
 }
 
 export interface DeathInput {
-  worldX: number | null;
-  worldY: number | null;
-  plane: number | null;
   killer: string | null;
 }
 
 export async function recordDeath(db: Kysely<Database>, loginId: string, input: DeathInput): Promise<void> {
-  await db
-    .insertInto('deaths')
-    .values({ login_id: loginId, world_x: input.worldX, world_y: input.worldY, plane: input.plane, killer: input.killer })
-    .execute();
+  await db.insertInto('deaths').values({ login_id: loginId, killer: input.killer }).execute();
 }
 
 export async function upsertHiscoreActivity(
@@ -171,22 +165,19 @@ export async function getClueCompletions(
 
 export interface DeathEntry {
   diedAt: Date;
-  worldX: number | null;
-  worldY: number | null;
-  plane: number | null;
   killer: string | null;
 }
 
 export async function getDeaths(db: Kysely<Database>, loginId: string, limit: number): Promise<DeathEntry[]> {
   const rows = await db
     .selectFrom('deaths')
-    .select(['died_at', 'world_x', 'world_y', 'plane', 'killer'])
+    .select(['died_at', 'killer'])
     .where('login_id', '=', loginId)
     .orderBy('died_at', 'desc')
     .limit(limit)
     .execute();
 
-  return rows.map((r) => ({ diedAt: r.died_at, worldX: r.world_x, worldY: r.world_y, plane: r.plane, killer: r.killer }));
+  return rows.map((r) => ({ diedAt: r.died_at, killer: r.killer }));
 }
 
 export async function getHiscoreActivities(db: Kysely<Database>, loginId: string): Promise<Record<string, number>> {
