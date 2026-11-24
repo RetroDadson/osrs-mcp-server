@@ -11,7 +11,6 @@ import type { Database } from './types.js';
  */
 const SNAPSHOT_COLUMNS = [
   'stats',
-  'coordinates',
   'skills',
   'quests',
   'inventory',
@@ -19,6 +18,7 @@ const SNAPSHOT_COLUMNS = [
   'bank',
   'shared_bank',
   'rune_pouch',
+  'quiver',
   'interacting',
   'seed_vault',
   'diary_vars',
@@ -33,7 +33,6 @@ interface LoginDataRow {
   login_name: string;
   last_updated: Date | null;
   stats: number[] | null;
-  coordinates: number[] | null;
   skills: number[] | null;
   quests: Buffer | null;
   inventory: number[] | null;
@@ -41,6 +40,7 @@ interface LoginDataRow {
   bank: number[] | null;
   shared_bank: number[] | null;
   rune_pouch: number[] | null;
+  quiver: number[] | null;
   interacting: Interacting | null;
   seed_vault: number[] | null;
   diary_vars: number[] | null;
@@ -92,7 +92,6 @@ function rowToLoginSnapshot(row: LoginDataRow): LoginSnapshot {
   return {
     name: row.login_name,
     stats: row.stats ?? undefined,
-    coordinates: row.coordinates ?? undefined,
     skills: row.skills ?? undefined,
     quests: row.quests ? Array.from(row.quests) : undefined,
     inventory: row.inventory ?? undefined,
@@ -100,6 +99,7 @@ function rowToLoginSnapshot(row: LoginDataRow): LoginSnapshot {
     bank: row.bank ?? undefined,
     shared_bank: row.shared_bank ?? undefined,
     rune_pouch: row.rune_pouch ?? undefined,
+    quiver: row.quiver ?? undefined,
     interacting: row.interacting ?? undefined,
     seed_vault: row.seed_vault ?? undefined,
     deposited: undefined,

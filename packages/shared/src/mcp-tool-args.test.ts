@@ -8,7 +8,7 @@ describe('ItemsArgsSchema', () => {
   });
 
   it('accepts every valid container', () => {
-    for (const container of ['inventory', 'bank', 'equipment', 'seed_vault', 'shared_bank']) {
+    for (const container of ['inventory', 'bank', 'equipment', 'seed_vault', 'shared_bank', 'quiver']) {
       expect(ItemsArgsSchema.safeParse({ container }).success).toBe(true);
     }
   });

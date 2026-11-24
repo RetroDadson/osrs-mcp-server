@@ -64,4 +64,4 @@ export const ACCOUNT_TYPES = [
   'unranked_group_ironman',
 ] as const;
 
-export const ITEM_CONTAINERS = ['inventory', 'bank', 'equipment', 'seed_vault', 'shared_bank'] as const;
+export const ITEM_CONTAINERS = ['inventory', 'bank', 'equipment', 'seed_vault', 'shared_bank', 'quiver'] as const;

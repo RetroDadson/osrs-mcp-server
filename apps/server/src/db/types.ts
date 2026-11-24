@@ -13,9 +13,6 @@ export interface LoginsTable {
   stats_last_update: Date | null;
   stats: number[] | null;
 
-  coordinates_last_update: Date | null;
-  coordinates: number[] | null;
-
   skills_last_update: Date | null;
   skills: number[] | null;
 
@@ -30,6 +27,9 @@ export interface LoginsTable {
 
   rune_pouch_last_update: Date | null;
   rune_pouch: number[] | null;
+
+  quiver_last_update: Date | null;
+  quiver: number[] | null;
 
   bank_last_update: Date | null;
   bank: number[] | null;
@@ -111,9 +111,6 @@ export interface DeathsTable {
   id: Generated<string>;
   login_id: string;
   died_at: WithDefault<Date>;
-  world_x: number | null;
-  world_y: number | null;
-  plane: number | null;
   killer: string | null;
 }
 

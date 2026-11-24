@@ -55,8 +55,8 @@ export function validateSnapshotPropLength(
  * original Rust server's per-field validation calls.
  */
 export const SNAPSHOT_PROP_LIMITS = {
-  stats: { min: 7, max: 7, format: 'flat' },
-  coordinates: { min: 3, max: 4, format: 'flat' },
+  // [hp, hp max, prayer, prayer max, run energy, run energy max] - no world number.
+  stats: { min: 6, max: 6, format: 'flat' },
   skills: { min: 23, max: 24, format: 'flat' },
   quests: { min: 0, max: 250, format: 'flat' },
   inventory: { min: 56, max: 56, format: 'item_pairs' },
@@ -64,6 +64,8 @@ export const SNAPSHOT_PROP_LIMITS = {
   bank: { min: 0, max: 3000, format: 'item_pairs' },
   shared_bank: { min: 0, max: 1000, format: 'item_pairs' },
   rune_pouch: { min: 6, max: 8, format: 'item_pairs' },
+  // Dizana's quiver holds one ammo stack: [itemId, quantity], [0, 0] when empty.
+  quiver: { min: 2, max: 2, format: 'item_pairs' },
   seed_vault: { min: 0, max: 500, format: 'item_pairs' },
   deposited: { min: 0, max: 200, format: 'item_pairs' },
   diary_vars: { min: 0, max: 62, format: 'flat' },

@@ -19,7 +19,7 @@ describe('LoginUpdateSchema', () => {
   it('accepts a full snapshot payload', () => {
     const result = LoginUpdateSchema.safeParse({
       name: 'Zezima',
-      stats: [1, 2, 3, 4, 5, 6, 7],
+      stats: [1, 2, 3, 4, 5, 6],
       combat_achievements: [1, 2, 3, 4, 5, 6],
       slayer_task: {
         task: 'Gargoyles',
@@ -75,9 +75,18 @@ describe('InteractingSchema', () => {
       name: 'Gargoyle',
       scale: 100,
       ratio: 1,
-      location: { x: 100, y: 200, plane: 0 },
     });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects an interaction target location', () => {
+    const result = InteractingSchema.safeParse({
+      name: 'Gargoyle',
+      scale: 100,
+      ratio: 1,
+      location: { x: 100, y: 200, plane: 0 },
+    });
+    expect(result.success).toBe(false);
   });
 });
 
@@ -115,7 +124,11 @@ describe('DeathEventSchema', () => {
     expect(DeathEventSchema.safeParse({ name: 'Zezima' }).success).toBe(true);
   });
 
-  it('accepts a full death payload', () => {
+  it('accepts a death with a killer', () => {
+    expect(DeathEventSchema.safeParse({ name: 'Zezima', killer: 'Gargoyle' }).success).toBe(true);
+  });
+
+  it('rejects a death location', () => {
     const result = DeathEventSchema.safeParse({
       name: 'Zezima',
       world_x: 3200,
@@ -123,7 +136,7 @@ describe('DeathEventSchema', () => {
       plane: 0,
       killer: 'Gargoyle',
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 });
 

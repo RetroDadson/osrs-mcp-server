@@ -129,18 +129,13 @@ export function registerAuthedRoutes(app: FastifyInstance, deps: RouteDeps): voi
     if (!parsed.success) {
       return reply.code(400).send({ message: 'Invalid request body' });
     }
-    const { world_x, world_y, plane, killer } = parsed.data;
+    const { killer } = parsed.data;
     const failure = validateOptionalStringLength('killer', killer, DEATH_KILLER_MAX_LENGTH);
     if (failure && !failure.ok) {
       return reply.code(400).send({ message: failure.message });
     }
 
-    await recordDeath(deps.db, loginId(request), {
-      worldX: world_x ?? null,
-      worldY: world_y ?? null,
-      plane: plane ?? null,
-      killer: killer ?? null,
-    });
+    await recordDeath(deps.db, loginId(request), { killer: killer ?? null });
     return reply.code(201).send();
   });
 

@@ -53,6 +53,14 @@ describe('MCP server (real client over real HTTP)', () => {
       tradeable: true,
       membersOnly: true,
     });
+    await upsertItemMetadata(testDb.db, {
+      itemId: 892,
+      name: 'Rune arrow',
+      highAlch: 240,
+      lowAlch: 160,
+      tradeable: true,
+      membersOnly: false,
+    });
     await testDb.db
       .updateTable('logins')
       .set({ inventory: [4151, 1, ...new Array(54).fill(0)], bank: [] })
@@ -64,9 +72,10 @@ describe('MCP server (real client over real HTTP)', () => {
     await testDb.db
       .updateTable('logins')
       .set({
-        coordinates: [3200, 3200, 0],
+        stats: [10, 99, 40, 70, 100, 100],
         quests: Buffer.from([0, 1, 2]),
         shared_bank: [4151, 5],
+        quiver: [892, 250],
         slayer_task: {
           task: 'Gargoyles',
           master: 'Duradel',
@@ -94,7 +103,7 @@ describe('MCP server (real client over real HTTP)', () => {
       outcome: 'completed',
     });
     await recordClueCompletion(testDb.db, loginId, 'easy');
-    await recordDeath(testDb.db, loginId, { worldX: 3200, worldY: 3200, plane: 0, killer: 'Gargoyle' });
+    await recordDeath(testDb.db, loginId, { killer: 'Gargoyle' });
 
     testApp = await buildTestApp(testDb);
     await testApp.app.listen({ port: 0, host: '127.0.0.1' });
@@ -160,6 +169,14 @@ describe('MCP server (real client over real HTTP)', () => {
     await client.close();
   });
 
+  it('get_items(quiver) resolves the ammo held in the quiver', async () => {
+    const client = await connectClient(port);
+    const result = await client.callTool({ name: 'get_items', arguments: { container: 'quiver' } });
+    const items = firstTextContent(result as never) as Array<{ item_id: number; name: string; quantity: number }>;
+    expect(items).toEqual([expect.objectContaining({ item_id: 892, name: 'Rune arrow', quantity: 250 })]);
+    await client.close();
+  });
+
   it('get_kill_counts excludes clue scroll activities', async () => {
     const client = await connectClient(port);
     const result = await client.callTool({ name: 'get_kill_counts', arguments: {} });
@@ -181,10 +198,15 @@ describe('MCP server (real client over real HTTP)', () => {
   it('get_status returns a combined status snapshot', async () => {
     const client = await connectClient(port);
     const result = await client.callTool({ name: 'get_status', arguments: {} });
-    const status = firstTextContent(result as never) as { name: string; coordinates: number[]; slayer_task: { task: string } };
+    const status = firstTextContent(result as never) as {
+      name: string;
+      stats: number[];
+      slayer_task: { task: string };
+    };
     expect(status.name).toBe(loginName);
-    expect(status.coordinates).toEqual([3200, 3200, 0]);
+    expect(status.stats).toEqual([10, 99, 40, 70, 100, 100]);
     expect(status.slayer_task.task).toBe('Gargoyles');
+    expect(Object.keys(status)).not.toContain('coordinates');
     await client.close();
   });
 
@@ -229,8 +251,9 @@ describe('MCP server (real client over real HTTP)', () => {
   it('get_deaths returns the death log', async () => {
     const client = await connectClient(port);
     const result = await client.callTool({ name: 'get_deaths', arguments: {} });
-    const deaths = firstTextContent(result as never) as Array<{ killer: string }>;
+    const deaths = firstTextContent(result as never) as Array<Record<string, unknown>>;
     expect(deaths[0]?.killer).toBe('Gargoyle');
+    expect(Object.keys(deaths[0] ?? {}).sort()).toEqual(['diedAt', 'killer']);
     await client.close();
   });
 
@@ -269,9 +292,9 @@ describe('MCP server (real client over real HTTP)', () => {
 
     const client = await connectClient(port, 'other-token');
     const result = await client.callTool({ name: 'get_status', arguments: {} });
-    const status = firstTextContent(result as never) as { name: string; coordinates: number[] | null };
+    const status = firstTextContent(result as never) as { name: string; slayer_task: unknown };
     expect(status.name).toBe('mcpother');
-    expect(status.coordinates).toBeNull();
+    expect(status.slayer_task).toBeNull();
     await client.close();
   });
 });

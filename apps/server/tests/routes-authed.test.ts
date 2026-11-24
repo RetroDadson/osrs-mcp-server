@@ -66,7 +66,7 @@ describe('authed routes', () => {
       const res = await testApp.app.inject({
         method: 'POST',
         url: '/api/update',
-        ...authed({ payload: { name: loginName, stats: [1, 2, 3, 4, 5, 6, 7] } }),
+        ...authed({ payload: { name: loginName, stats: [1, 2, 3, 4, 5, 6] } }),
       });
       expect(res.statusCode).toBe(200);
 
@@ -76,14 +76,49 @@ describe('authed routes', () => {
         .select('stats')
         .where('login_name', '=', loginName)
         .executeTakeFirstOrThrow();
-      expect(login.stats).toEqual([1, 2, 3, 4, 5, 6, 7]);
+      expect(login.stats).toEqual([1, 2, 3, 4, 5, 6]);
     });
 
-    it('rejects an oversized array (stats must be exactly 7 elements)', async () => {
+    it('rejects an undersized array (stats must be exactly 6 elements)', async () => {
       const res = await testApp.app.inject({
         method: 'POST',
         url: '/api/update',
         ...authed({ payload: { name: loginName, stats: [1, 2, 3] } }),
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('rejects stats that still carry a world number (7 elements)', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/update',
+        ...authed({ payload: { name: loginName, stats: [1, 2, 3, 4, 5, 6, 302] } }),
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('stores the quiver ammo stack', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/update',
+        ...authed({ payload: { name: loginName, quiver: [892, 250] } }),
+      });
+      expect(res.statusCode).toBe(200);
+
+      await testApp.batcher.flush();
+      const login = await testDb.db
+        .selectFrom('logins')
+        .select('quiver')
+        .where('login_name', '=', loginName)
+        .executeTakeFirstOrThrow();
+      expect(login.quiver).toEqual([892, 250]);
+    });
+
+    it('rejects a quiver that is not exactly one item pair', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/update',
+        ...authed({ payload: { name: loginName, quiver: [892, 250, 893, 10] } }),
       });
       expect(res.statusCode).toBe(400);
     });
@@ -133,11 +168,11 @@ describe('authed routes', () => {
       expect(res.statusCode).toBe(201);
     });
 
-    it('records a death with optional fields present', async () => {
+    it('records a death with a killer', async () => {
       const res = await testApp.app.inject({
         method: 'POST',
         url: '/api/death',
-        ...authed({ payload: { name: loginName, world_x: 3200, world_y: 3200, plane: 0, killer: 'Gargoyle' } }),
+        ...authed({ payload: { name: loginName, killer: 'Gargoyle' } }),
       });
       expect(res.statusCode).toBe(201);
     });
@@ -149,6 +184,15 @@ describe('authed routes', () => {
         ...authed({ payload: { name: loginName } }),
       });
       expect(res.statusCode).toBe(201);
+    });
+
+    it('rejects a death that includes a location', async () => {
+      const res = await testApp.app.inject({
+        method: 'POST',
+        url: '/api/death',
+        ...authed({ payload: { name: loginName, world_x: 3200, world_y: 3200, plane: 0, killer: 'Gargoyle' } }),
+      });
+      expect(res.statusCode).toBe(400);
     });
   });
 

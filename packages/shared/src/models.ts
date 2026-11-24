@@ -1,21 +1,15 @@
 import { z } from 'zod';
 import { AccountTypeSchema, CropStateSchema, SlayerTaskOutcomeSchema, ClueTierSchema } from './enums.js';
 
-export const CoordinatesSchema = z
-  .object({
-    x: z.number().int(),
-    y: z.number().int(),
-    plane: z.number().int(),
-  })
-  .strict();
-export type Coordinates = z.infer<typeof CoordinatesSchema>;
-
+/**
+ * What the player is currently interacting with: the target's name and health only. The target's
+ * location is deliberately not accepted, since it would reveal the player's own position.
+ */
 export const InteractingSchema = z
   .object({
     name: z.string(),
     scale: z.number().int(),
     ratio: z.number().int(),
-    location: CoordinatesSchema,
     last_updated: z.iso.datetime({ offset: true }).optional(),
   })
   .strict();
@@ -56,11 +50,13 @@ export type RenameLogin = z.infer<typeof RenameLoginSchema>;
  * `null`/absent field means "unchanged", not "clear the value"). `name` is no longer used to
  * route the request (auth resolves the login from the token alone) but the plugin still sends it
  * for its own internal stale-state gating, so it stays required on the wire.
+ *
+ * The player's position and world number are deliberately not part of this payload: together they
+ * are enough to find a player in-game, and they add nothing for an AI assistant.
  */
 export const LoginUpdateSchema = z.object({
   name: z.string(),
   stats: z.array(z.number().int()).optional(),
-  coordinates: z.array(z.number().int()).optional(),
   skills: z.array(z.number().int()).optional(),
   quests: z.array(z.number().int().min(0).max(255)).optional(),
   inventory: z.array(z.number().int()).optional(),
@@ -68,6 +64,7 @@ export const LoginUpdateSchema = z.object({
   bank: z.array(z.number().int()).optional(),
   shared_bank: z.array(z.number().int()).optional(),
   rune_pouch: z.array(z.number().int()).optional(),
+  quiver: z.array(z.number().int()).optional(),
   interacting: InteractingSchema.optional(),
   seed_vault: z.array(z.number().int()).optional(),
   deposited: z.array(z.number().int()).optional(),
@@ -105,12 +102,10 @@ export const ClueCompletionSchema = z
   .strict();
 export type ClueCompletion = z.infer<typeof ClueCompletionSchema>;
 
+/** A player death. Deliberately carries no location: where a player died is not collected. */
 export const DeathEventSchema = z
   .object({
     name: z.string(),
-    world_x: z.number().int().optional(),
-    world_y: z.number().int().optional(),
-    plane: z.number().int().optional(),
     killer: z.string().optional(),
   })
   .strict();
