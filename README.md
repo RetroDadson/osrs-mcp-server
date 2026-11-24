@@ -13,6 +13,7 @@ Tracks:
 * World position and current interaction target
 * Quest state, Achievement Diaries, Collection Log
 * Slayer tasks (current + history), Combat Achievements
+* Farming patches
 * Clue scroll completions (timestamped) and totals (from the OSRS Hiscores, authoritative)
 * Boss/activity kill counts (from the OSRS Hiscores)
 * Deaths (location + likely killer, best-effort)
