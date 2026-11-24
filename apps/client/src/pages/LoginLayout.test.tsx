@@ -57,4 +57,22 @@ describe('LoginLayout', () => {
     expect(await screen.findByText('Login page')).toBeInTheDocument();
     expect(getStoredLogin()).toEqual({ loginName: null, token: null });
   });
+
+  it('keeps the stored login and renders the outlet when the validation request fails', async () => {
+    storeLogin('mylogin', 'mytoken');
+    vi.mocked(api.amILoggedIn).mockRejectedValue(new TypeError('Failed to fetch'));
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/manage" element={<LoginLayout />}>
+          <Route index element={<div>Login content</div>} />
+        </Route>
+        <Route path="/login" element={<div>Login page</div>} />
+      </Routes>,
+      ['/manage'],
+    );
+
+    expect(await screen.findByText('Login content')).toBeInTheDocument();
+    expect(getStoredLogin()).toEqual({ loginName: 'mylogin', token: 'mytoken' });
+  });
 });
