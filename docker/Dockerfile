@@ -13,8 +13,10 @@ FROM build AS production-deps
 RUN npm prune --omit=dev
 
 FROM node:26-bookworm-slim AS runtime
+LABEL org.opencontainers.image.licenses="BSD-2-Clause"
 RUN useradd --system --create-home --home-dir /app appuser
 WORKDIR /app
+COPY --from=build --chown=appuser:appuser /app/LICENSE ./LICENSE
 COPY --from=production-deps --chown=appuser:appuser /app/node_modules ./node_modules
 COPY --from=build --chown=appuser:appuser /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=build --chown=appuser:appuser /app/packages/shared/dist ./packages/shared/dist
