@@ -1,8 +1,8 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    # Published by CI on every push to master. To build from source instead, replace this line with:
+    #   build: { context: ., dockerfile: docker/Dockerfile }
+    image: ghcr.io/retrodadson/osrs-mcp:latest
     environment:
       - PG_USER=${PG_USER}
       - PG_PASSWORD=${PG_PASSWORD}
